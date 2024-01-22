@@ -1,0 +1,580 @@
+# A simple static site generator, written in Inko.
+import builder.html
+import markdown
+import markdown.html.Filter
+import std.clone.Clone
+import std.crypto.sha2.Sha256
+import std.fs.file.(ReadOnlyFile, WriteOnlyFile)
+import std.fs.path.Path
+import std.io
+import std.iter.Stream
+import std.json.Json
+import std.stdio.STDERR
+import std.string.(StringBuffer, ToString)
+import std.sys.(exit)
+import std.time.DateTime
+import wobsite.fnmatch
+import wobsite.time.(parse_date)
+
+# A type that maps asset paths/URIs to their checksums/hashes.
+class Hashes {
+  # The keys of this map start with a `/`, such that relative URLs such as
+  # `/css/foo.css` directly translate into valid keys for this map.
+  let @mapping: Map[String, String]
+
+  fn static new -> Hashes {
+    Hashes { @mapping = Map.new }
+  }
+
+  fn mut add(path: ref Path, key: String) -> Result[Nil, io.Error] {
+    let bytes = ByteArray.new
+    let file = try ReadOnlyFile.new(path)
+    let hasher = Sha256.new
+
+    while (try file.read(into: bytes, size: 8096)) > 0 {
+      hasher.write(bytes)
+      bytes.clear
+    }
+
+    @mapping.set(key, hasher.finish.to_string)
+    Result.Ok(nil)
+  }
+
+  fn get(key: String) -> Option[String] {
+    @mapping.opt(key)
+  }
+}
+
+impl Clone[Hashes] for Hashes {
+  fn pub clone -> Hashes {
+    Hashes {
+      @mapping = @mapping.iter.reduce(Map.new) fn (map, pair) {
+        map.set(pair.key.clone, pair.value.clone)
+        map
+      }
+    }
+  }
+}
+
+# An error produced while parsing a Markdown document.
+class pub enum ParseError {
+  # An IO operation (such as reading the Markdown file) failed.
+  #
+  # The arguments of this case are:
+  #
+  # 1. The path of the file that couldn't be parsed
+  # 1. The IO error that occurred
+  case Io(Path, io.Error)
+
+  # The front matter is invalid.
+  #
+  # The arguments of this case are:
+  #
+  # 1. The path of the file that couldn't be parsed
+  # 1. The front matter key that has an invalid value
+  case FrontMatter(Path, String)
+
+  # The Markdown is invalid.
+  #
+  # The arguments of this case are:
+  #
+  # 1. The path of the file that couldn't be parsed
+  # 1. An error message produced while parsing the Markdown
+  case Markdown(Path, String)
+}
+
+impl ToString for ParseError {
+  fn pub to_string -> String {
+    match self {
+      case Io(p, e) -> "failed to read {p}: {e}"
+      case FrontMatter(p, k) -> {
+        "failed to parse the front matter of {p}: the '{k}' key is invalid"
+      }
+      case Markdown(p, v) -> "failed to parse the Markdown of {p}: {v}"
+    }
+  }
+}
+
+# A page backed by a Markdown document.
+class pub Page {
+  # The title of the page.
+  let pub @title: String
+
+  # The URL of the page.
+  let pub @url: String
+
+  # The date at which the page is created.
+  let pub @date: DateTime
+
+  # The path to the source file of this page.
+  let pub @source_path: Path
+
+  # The body of the page.
+  let pub @body: markdown.Document
+
+  # Parses a `Page` from a source file path.
+  #
+  # The `source` argument is the path to the main source directory. The `path`
+  # argument is the path to the source file (inside the `source` directory) that
+  # needs to be parsed.
+  fn pub static parse_file(
+    source: ref Path,
+    path: ref Path,
+  ) -> Result[Page, ParseError] {
+    let uri = path.strip_prefix(source).unwrap.with_extension('').to_string
+    let url = if uri == 'index' { '/' } else { "/{uri}/" }
+    let data = ByteArray.new
+
+    try ReadOnlyFile
+      .new(path)
+      .then fn (f) { f.read_all(data) }
+      .map_error fn (e) { ParseError.Io(path.clone, e) }
+
+    let front_md = markdown.split_front_matter(data.into_string)
+    let json = try Json
+      .parse(front_md.0)
+      .map_error fn (e) { ParseError.Markdown(path.clone, e.to_string) }
+
+    let title = match json.query.key('title').as_string {
+      case Some(v) -> v
+      case _ -> throw ParseError.FrontMatter(path.clone, 'title')
+    }
+
+    let date = match json.query.key('date').as_string {
+      case Some(v) -> match parse_date(v) {
+        case Some(v) -> v
+        case _ -> throw ParseError.FrontMatter(path.clone, 'date')
+      }
+      case _ -> DateTime.utc
+    }
+
+    let doc = try markdown
+      .Document
+      .parse(front_md.1)
+      .map_error fn (e) { ParseError.Markdown(path.clone, e.to_string) }
+
+    Result.Ok(Page {
+      @title = title,
+      @url = url,
+      @date = date,
+      @source_path = path.clone,
+      @body = doc,
+    })
+  }
+
+  # Converts the Markdown to an HTML document.
+  #
+  # The `filters` array is a list of Markdown filters to apply to the HTML
+  # document.
+  fn pub to_html(filters: Array[Filter]) -> html.Document {
+    let doc = @body.to_html
+
+    filters.into_iter.each fn (filter) { filter.run(doc) }
+    doc
+  }
+}
+
+# A type that tracks the source and output directories, along with all the
+# source files.
+class pub Files {
+  # The directory containing the source files.
+  let pub @source: Path
+
+  # The directory to store the built files in.
+  let pub @output: Path
+
+  # A list of all the files in the source directory.
+  let @files: Array[Path]
+
+  # A mapping of paths relative to the source directory and their corresponding
+  # file hashes.
+  let @hashes: Hashes
+
+  # Returns a new `Files` using the given source and output directories.
+  #
+  # This method recursively crawls the `source` directory, recording all the
+  # source files it encounters. If this fails, an `Error(io.Error)` is returned.
+  fn static new(source: Path, output: Path) -> Result[Files, io.Error] {
+    let files = []
+    let hashes = Hashes.new
+    let iter = try source.list_all
+
+    try iter.try_each fn (res) {
+      match res {
+        case Ok({ @type = File, @path = path }) -> {
+          try hashes.add(path, "/{path.strip_prefix(source).unwrap}")
+          files.push(path)
+          Result.Ok(nil)
+        }
+        case Ok(_) -> Result.Ok(nil)
+        case Error(e) -> Result.Error(e)
+      }
+    }
+
+    Result.Ok(Files {
+      @source = source,
+      @output = output,
+      @files = files,
+      @hashes = hashes,
+    })
+  }
+
+  # Returns an iterator that yields all the source files matching the given
+  # `fnmatch(3)` pattern.
+  fn pub matching(pattern: String) -> Stream[ref Path] {
+    let root = pattern.starts_with?('/')
+
+    @files.iter.select fn (path) {
+      fnmatch.match(pattern, "/{path.strip_prefix(@source).unwrap}", root)
+    }
+  }
+
+  fn hash(path: ref String) -> Option[String] {
+    @hashes.get(path)
+  }
+}
+
+impl Clone[Files] for Files {
+  fn pub clone -> Files {
+    Files {
+      @source = @source.clone,
+      @output = @output.clone,
+      @files = @files.clone,
+      @hashes = @hashes.clone,
+    }
+  }
+}
+
+# A collection of errors produced while building the website, along with the
+# means of easily formatting them.
+class pub Errors {
+  let @entries: Array[(Path, String)]
+
+  fn mut add(path: Path, error: String) {
+    @entries.push((path, error))
+  }
+
+  fn empty? -> Bool {
+    @entries.empty?
+  }
+}
+
+impl ToString for Errors {
+  fn pub to_string -> String {
+    let buf = @entries.iter.reduce(StringBuffer.new) fn (buf, entry) {
+      if buf.size > 0 { buf.push("\n\n") }
+      buf.push("{entry.0} \e[31;1merror:\e[0m\n  {entry.1}")
+      buf
+    }
+
+    buf.into_string
+  }
+}
+
+# A type that updates an HTML document such that asset links (e.g. CSS files)
+# contain a hash, ensuring that updates bust browser caches.
+#
+# This type doesn't physically rename any files, instead it adds a `?hash=VAL`
+# query string to each relevant asset link.
+class UpdateAssetLinks {
+  let @files: ref Files
+
+  fn run(document: mut html.Document) {
+    let nodes = document.nodes.iter_mut.to_array
+
+    loop {
+      match nodes.pop {
+        case Some(Element(el)) -> {
+          element(el)
+          nodes.append(el.nodes.iter_mut.to_array)
+        }
+        case Some(_) -> {}
+        case _ -> break
+      }
+    }
+  }
+
+  fn element(element: mut html.Element) {
+    match element.name {
+      case 'link' -> link(element)
+      case 'img' -> src_element(element)
+      case 'script' -> src_element(element)
+      case _ -> {}
+    }
+  }
+
+  fn src_element(element: mut html.Element) {
+    match element.attributes.opt('src') {
+      case Some(url) -> element.attr('src', hashed_url(url))
+      case _ -> return
+    }
+  }
+
+  fn link(link: mut html.Element) {
+    match link.attributes.opt('rel') {
+      case Some('stylesheet' or 'icon') -> match link.attributes.opt('href') {
+        case Some(url) -> link.attr('href', hashed_url(url))
+        case _ -> return
+      }
+      case _ -> return
+    }
+  }
+
+  fn hashed_url(url: String) -> String {
+    match @files.hash(url) {
+      case Some(v) -> "{url}?hash={v}"
+      case _ -> url
+    }
+  }
+}
+
+# A type that represents a website to build.
+class pub Site {
+  # The files and directories that make up the website.
+  let pub @files: Files
+
+  # The number of pending jobs.
+  let @pending: Int
+
+  # A channel used to communicate the result of each job.
+  let @status: Channel[uni Status]
+
+  # Creates a new `Site`, builds it, and presents the user with the results.
+  #
+  # The `func` argument is used to set up what files to build, copy, etc.
+  #
+  # If any errors are produced, they're written to STDERR and this method
+  # terminates the program with exit code 1.
+  #
+  # # Examples
+  #
+  # Building a website that consists of simple text and CSS files:
+  #
+  #     import wobsite.Site
+  #
+  #     Site.build fn (site) {
+  #       site.copy('*.txt')
+  #       site.copy('*.css')
+  #     }
+  fn pub static build(func: fn (mut Site)) {
+    let source = Path.new('source')
+    let output = Path.new('public')
+    let stderr = STDERR.new
+    let site = match Site.new(source, output) {
+      case Ok(site) -> site
+      case Error(e) -> {
+        stderr.print("Failed to get the site's source files: {e}")
+        exit(1)
+      }
+    }
+
+    func.call(site)
+
+    match site.wait {
+      case Ok(_) -> {}
+      case Error(e) -> {
+        stderr.print(e.to_string)
+        exit(1)
+      }
+    }
+  }
+
+  # Returns a new `Site` instance.
+  #
+  # The `source` argument specifies the path to the source files. The `output`
+  # argument is the path to write the built files to.
+  #
+  # This method also recursively gets all the source files to (potentially)
+  # build. If this fails, an `Error(std.io.Error)` is returned.
+  fn pub static new(source: Path, output: Path) -> Result[Site, io.Error] {
+    Files.new(source, output).map fn (files) {
+      Site { @files = files, @pending = 0, @status = Channel.new(size: 32) }
+    }
+  }
+
+  # Schedule a job that generates an arbitrary file.
+  #
+  # The `path` argument specifies the output path, relative to the output
+  # directory.
+  #
+  # The `builder` argument is a closure that's called to generate the content of
+  # the file.
+  #
+  # # Examples
+  #
+  #     import wobsite.Site
+  #
+  #     Site.build fn (site) {
+  #       site.generate('feed.xml') fn (files) { 'Example content' }
+  #     }
+  fn pub mut generate(
+    path: String,
+    builder: uni fn (ref Files) -> Result[String, String],
+  ) {
+    @pending += 1
+    spawn.generate(recover @files.output.join(path), builder)
+  }
+
+  # Copies a source file to the output directory, using the same hierarchy as
+  # the source file.
+  #
+  # The `pattern` argument specifies the `fnmatch(3)` pattern to use for finding
+  # the files to copy.
+  #
+  # # Examples
+  #
+  #     import wobsite.Site
+  #
+  #     Site.build fn (site) { site.copy('*.css') }
+  fn pub mut copy(pattern: String) {
+    @files.matching(pattern).each fn (path) {
+      @pending += 1
+      spawn.copy(recover path.clone)
+    }
+  }
+
+  # Generates an HTML file from a Markdown file.
+  #
+  # The `pattern` argument specifies the `fnmatch(3)` pattern to use for
+  # determining the files to process.
+  #
+  # The `index` argument decides the output file: if set to `true`, a file
+  # `example.md` is turned into `example/index.html`. If `false`, the output
+  # file is `example.html`.
+  #
+  # The `builder` argument is a closure called for every file to process,
+  # returning another closure used to build the final HTML document. In a
+  # typical setting, this closure converts the Markdown to HTML and wraps it in
+  # a layout of sorts.
+  fn pub mut page(
+    pattern: String,
+    index: Bool,
+    builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
+  ) {
+    @files.matching(pattern).each fn (path) {
+      @pending += 1
+      spawn.page(recover path.clone, builder.call, index)
+    }
+  }
+
+  fn move wait -> Result[Nil, Errors] {
+    let errors = Errors { @entries = [] }
+
+    while @pending > 0 {
+      match @status.receive {
+        case Ok -> {}
+        case Error(path, err) -> errors.add(path, err)
+      }
+
+      @pending -= 1
+    }
+
+    if errors.empty? { Result.Ok(nil) } else { Result.Error(errors) }
+  }
+
+  fn spawn -> Worker {
+    Worker { @files = recover @files.clone, @status = @status }
+  }
+}
+
+# The result of a background job.
+class pub enum Status {
+  # The job finished successfully.
+  case Ok
+
+  # The job failed.
+  #
+  # The arguments of this case are as follows:
+  #
+  # 1. The path of the file that the error belongs to
+  # 1. An error message
+  case Error(Path, String)
+}
+
+class async Worker {
+  let @files: Files
+  let @status: Channel[uni Status]
+
+  fn async generate(
+    path: uni Path,
+    builder: uni fn (ref Files) -> Result[String, String],
+  ) {
+    let path = recover path
+    let data = match builder.call(@files) {
+      case Ok(v) -> v
+      case Error(e) -> {
+        @status.send(recover Status.Error(path.clone, e))
+        return
+      }
+    }
+
+    let res = path
+      .directory
+      .create_directory_all
+      .then fn (_) { WriteOnlyFile.new(path) }
+      .then fn (f) { f.write_string(data) }
+
+    let status = match res {
+      case Ok(_) -> recover Status.Ok
+      case Error(e) -> recover Status.Error(path.clone, e.to_string)
+    }
+
+    @status.send(status)
+  }
+
+  fn async copy(from: uni Path) {
+    let from = recover from
+    let to = @files.output.join(from.strip_prefix(@files.source).unwrap)
+    let dir = to.directory
+    let status = match dir.create_directory_all.then(fn (_) { from.copy(to) }) {
+      case Ok(_) -> recover Status.Ok
+      case Error(e) -> recover Status.Error(to.clone, e.to_string)
+    }
+
+    @status.send(status)
+  }
+
+  fn async page(
+    source: uni Path,
+    layout: uni fn (ref Files, Page) -> Result[html.Document, String],
+    index: Bool,
+  ) {
+    let source = recover source
+    let rel_source = source.strip_prefix(@files.source).unwrap
+    let target = if index {
+      @files.output.join(rel_source.with_extension('').join('index.html'))
+    } else {
+      @files.output.join(rel_source.with_extension('html'))
+    }
+
+    let page = match Page.parse_file(@files.source, source) {
+      case Ok(v) -> v
+      case Error(e) -> {
+        @status.send(recover Status.Error(target.clone, e.to_string))
+        return
+      }
+    }
+
+    let html = match layout.call(@files, page) {
+      case Ok(v) -> v
+      case Error(e) -> {
+        @status.send(recover Status.Error(target.clone, e))
+        return
+      }
+    }
+
+    UpdateAssetLinks { @files = @files }.run(html)
+
+    let status = match target
+      .directory
+      .create_directory_all
+      .then(fn (_) { WriteOnlyFile.new(target) })
+      .then(fn (f) { f.write_string(html.to_string) })
+    {
+      case Ok(_) -> recover Status.Ok
+      case Error(e) -> recover Status.Error(target.clone, e.to_string)
+    }
+
+    @status.send(status)
+  }
+}

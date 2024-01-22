@@ -1,0 +1,70 @@
+import std.test.Tests
+import std.time.DateTime
+import wobsite.time
+
+fn pub tests(t: mut Tests) {
+  t.test('time.parse_date') fn (t) {
+    t.equal(
+      time.parse_date('2024-01-02T13:14:15:Z'),
+      Option.Some(DateTime {
+        @year = 2024,
+        @month = 1,
+        @day = 2,
+        @hour = 13,
+        @minute = 14,
+        @second = 15,
+        @sub_second = 0.0,
+        @utc_offset = 0,
+      })
+    )
+
+    t.equal(
+      time.parse_date('2024-01-02'),
+      Option.Some(DateTime {
+        @year = 2024,
+        @month = 1,
+        @day = 2,
+        @hour = 0,
+        @minute = 0,
+        @second = 0,
+        @sub_second = 0.0,
+        @utc_offset = 0,
+      })
+    )
+
+    t.equal(time.parse_date('2024'), Option.None)
+    t.equal(time.parse_date('2024-01-aa'), Option.None)
+    t.equal(time.parse_date('2024-aa-01'), Option.None)
+    t.equal(time.parse_date('aaaa-01-01'), Option.None)
+  }
+
+  t.test('time.human_readable_date') fn (t) {
+    let date = DateTime {
+      @year = 2024,
+      @month = 1,
+      @day = 2,
+      @hour = 13,
+      @minute = 14,
+      @second = 15,
+      @sub_second = 0.0,
+      @utc_offset = 0,
+    }
+
+    t.equal(time.human_readable_date(date), 'January 2, 2024')
+  }
+
+  t.test('time.iso_date') fn (t) {
+    let date = DateTime {
+      @year = 2024,
+      @month = 1,
+      @day = 2,
+      @hour = 13,
+      @minute = 14,
+      @second = 15,
+      @sub_second = 0.0,
+      @utc_offset = 0,
+    }
+
+    t.equal(time.iso_date(date), '2024-01-02T13:14:15Z')
+  }
+}

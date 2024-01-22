@@ -1,0 +1,10 @@
+import std.test.Tests
+import wobsite.fnmatch
+
+fn pub tests(t: mut Tests) {
+  t.test('fnmatch.match') fn (t) {
+    t.false(fnmatch.match('index.md', '/index.md', root: false))
+    t.true(fnmatch.match('/index.md', '/index.md', root: true))
+    t.true(fnmatch.match('*.md', '/index.md', root: false))
+  }
+}

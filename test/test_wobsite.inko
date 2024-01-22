@@ -1,0 +1,425 @@
+import builder.html
+import markdown
+import markdown.html.Filter
+import std.drop.(Drop, drop)
+import std.env
+import std.fs.file.(ReadOnlyFile, WriteOnlyFile)
+import std.fs.path.Path
+import std.io
+import std.json.Json
+import std.string.ToString
+import std.test.Tests
+import std.time.DateTime
+import wobsite.(Errors, Files, Hashes, Site, Page, ParseError, UpdateAssetLinks)
+
+fn read(path: ref Path) -> Result[String, io.Error] {
+  let bytes = ByteArray.new
+
+  try ReadOnlyFile.new(path).then fn (f) { f.read_all(bytes) }
+  Result.Ok(bytes.into_string)
+}
+
+fn write(path: ref Path, string: String) {
+  WriteOnlyFile.new(path).then fn (f) { f.write_string(string) }.unwrap
+}
+
+class ExampleFilter {}
+
+impl Filter for ExampleFilter {
+  fn pub mut run(document: mut html.Document) {
+    document.nodes.iter_mut.each fn (node) {
+      match node {
+        case Element(el) -> el.name = 'foo'
+        case _ -> {}
+      }
+    }
+  }
+}
+
+class TempPath {
+  let @path: Path
+
+  fn static directory[T: ToString](id: ref T) -> TempPath {
+    let path = new(id)
+
+    path.path.create_directory.unwrap
+    path
+  }
+
+  fn static new[T: ToString](id: ref T) -> TempPath {
+    TempPath { @path = env.temporary_directory.join("inko-wobsite-{id}") }
+  }
+}
+
+impl Drop for TempPath {
+  fn mut drop {
+    if @path.file? {
+      let _ = @path.remove_file
+    } else if @path.directory? {
+      let _ = @path.remove_directory_all
+    }
+  }
+}
+
+fn front_matter(title: String, date: String) -> String {
+  let map = Map.new
+
+  if title.size > 0 { map.set('title', Json.String(title)) }
+  if date.size > 0 { map.set('date', Json.String(date)) }
+  "---\n{Json.Object(map).to_string}\n---\n"
+}
+
+fn pub tests(t: mut Tests) {
+  t.test('Hashes.add') fn (t) {
+    let path = TempPath.new(t.id)
+    let hashes = Hashes.new
+
+    write(path.path, 'hello')
+
+    t.true(hashes.add(path.path, '/foo').ok?)
+    t.equal(
+      hashes.get('/foo'),
+      Option.Some('2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
+    )
+  }
+
+  t.test('Hashes.clone') fn (t) {
+    let orig = Hashes.new
+
+    orig.mapping.set('/foo', '123')
+
+    let copy = orig.clone
+
+    t.equal(orig.get('/foo'), Option.Some('123'))
+    t.equal(copy.get('/foo'), Option.Some('123'))
+  }
+
+  t.test('ParseError.to_string') fn (t) {
+    t.equal(
+      ParseError.Io(Path.new('test'), io.Error.NotFound).to_string,
+      "failed to read test: the resource isn't found"
+    )
+
+    t.equal(
+      ParseError.FrontMatter(Path.new('test'), 'foo').to_string,
+      "failed to parse the front matter of test: the 'foo' key is invalid"
+    )
+
+    t.equal(
+      ParseError.Markdown(Path.new('test'), 'foo').to_string,
+      'failed to parse the Markdown of test: foo'
+    )
+  }
+
+  t.test('Page.parse_file with a non-existing file') fn (t) {
+    let path = TempPath.new(t.id)
+
+    t.true(Page.parse_file(path.path.directory, path.path).error?)
+  }
+
+  t.test('Page.parse_file with a missing title') fn (t) {
+    let path = TempPath.new(t.id)
+
+    write(path.path, front_matter('', '2024-01-01T13:00:00Z'))
+    t.true(Page.parse_file(path.path.directory, path.path).error?)
+  }
+
+  t.test('Page.parse_file with an invalid date') fn (t) {
+    let path = TempPath.new(t.id)
+
+    write(path.path, front_matter('test', '2024'))
+    t.true(Page.parse_file(path.path.directory, path.path).error?)
+  }
+
+  t.test('Page.parse_file with invalid Markdown') fn (t) {
+    let path = TempPath.new(t.id)
+
+    write(path.path, front_matter('test', '2024-01-01T13:00:00Z') + "| foo")
+    t.true(Page.parse_file(path.path.directory, path.path).error?)
+  }
+
+  t.test('Page.parse_file with a valid file') fn (t) {
+    let path = TempPath.new(t.id)
+
+    write(path.path, front_matter('test', '2024-08-12T13:00:00Z') + 'foo')
+
+    let page = Page.parse_file(path.path.directory, path.path).unwrap
+
+    t.equal(page.title, 'test')
+    t.equal(page.date.year, 2024)
+    t.equal(page.date.month, 8)
+    t.equal(page.date.day, 12)
+    t.equal(page.date.hour, 13)
+    t.equal(page.source_path, path.path)
+    t.equal(page.url, "/inko-wobsite-{t.id}/")
+    t.equal(page.to_html([]).to_string, '<p>foo</p>')
+  }
+
+  t.test('Page.to_html') fn (t) {
+    let filters = [ExampleFilter {} as Filter]
+    let page = Page {
+      @title = 'Foo',
+      @url = '/foo/',
+      @date = DateTime.utc,
+      @source_path = Path.new('foo'),
+      @body = markdown.Document.parse('foo').unwrap,
+    }
+
+    t.equal(page.to_html(filters).to_string, '<foo>foo</foo>')
+  }
+
+  t.test('Files.new') fn (t) {
+    let dir = Path.new('src')
+    let files = Files.new(dir.clone, dir).unwrap
+
+    t.true(files.files.size > 0)
+  }
+
+  t.test('Files.matching') fn (t) {
+    let index = Path.new('source/index.md')
+    let article = Path.new('source/articles/test.md')
+    let files = Files {
+      @source = Path.new('source'),
+      @output = Path.new('public'),
+      @files = [index.clone, article.clone],
+      @hashes = Hashes.new,
+    }
+
+    t.equal(files.matching('index.md').to_array, [])
+    t.equal(files.matching('test.md').to_array, [])
+    t.equal(files.matching('articles/test.md').to_array, [])
+    t.equal(files.matching('/index.md').to_array, [ref index])
+    t.equal(files.matching('/articles/test.md').to_array, [ref article])
+    t.equal(files.matching('/test.md').to_array, [])
+    t.equal(files.matching('*.md').to_array, [ref index, ref article])
+    t.equal(files.matching('/*.md').to_array, [ref index])
+  }
+
+  t.test('Files.hash') fn (t) {
+    let files = Files {
+      @source = Path.new('source'),
+      @output = Path.new('public'),
+      @files = [],
+      @hashes = Hashes.new,
+    }
+
+    files.hashes.mapping.set('/foo', '123')
+    t.equal(files.hash('/foo'), Option.Some('123'))
+  }
+
+  t.test('Files.clone') fn (t) {
+    let orig = Files {
+      @source = Path.new('source'),
+      @output = Path.new('public'),
+      @files = [Path.new('a')],
+      @hashes = Hashes.new,
+    }
+
+    orig.hashes.mapping.set('/foo', '123')
+
+    let copy = orig.clone
+
+    t.equal(orig.files, copy.files)
+    t.equal(orig.hashes.mapping, copy.hashes.mapping)
+  }
+
+  t.test('Errors.add') fn (t) {
+    let errors = Errors { @entries = [] }
+
+    errors.add(Path.new('foo'), 'test')
+    t.false(errors.empty?)
+  }
+
+  t.test('Errors.to_string') fn (t) {
+    let errors = Errors { @entries = [] }
+
+    errors.add(Path.new('foo'), 'error 1')
+    errors.add(Path.new('bar'), 'error 2')
+
+    let str = errors.to_string
+
+    t.true(str.contains?('error 1'))
+    t.true(str.contains?('error 2'))
+  }
+
+  t.test('UpdateAssetLinks.run') fn (t) {
+    let files = Files {
+      @source = Path.new('source'),
+      @output = Path.new('public'),
+      @files = [],
+      @hashes = Hashes.new,
+    }
+
+    files.hashes.mapping.set('/style.css', '111')
+    files.hashes.mapping.set('/favicon.ico', '222')
+    files.hashes.mapping.set('/test.jpg', '333')
+    files.hashes.mapping.set('/test.png', '444')
+    files.hashes.mapping.set('/test.js', '555')
+
+    let html = html.Document.fragment
+
+    html.link.attr('rel', 'stylesheet').attr('href', '/style.css')
+    html.link.attr('rel', 'stylesheet').attr('href', '/missing.css')
+    html.link.attr('rel', 'icon').attr('href', '/favicon.ico')
+    html.link.attr('rel', 'foobar').attr('href', '/test.jpg')
+    html.img.attr('src', '/test.png')
+    html.script.attr('src', '/test.js')
+    UpdateAssetLinks { @files = files }.run(html)
+
+    t.equal(
+      html.to_string,
+      '\
+        <link rel="stylesheet" href="/style.css?hash=111" />\
+        <link rel="stylesheet" href="/missing.css" />\
+        <link rel="icon" href="/favicon.ico?hash=222" />\
+        <link rel="foobar" href="/test.jpg" />\
+        <img src="/test.png?hash=444" />\
+        <script src="/test.js?hash=555"></script>\
+      '
+    )
+  }
+
+  t.test('Site.new with a missing source directory') fn (t) {
+    t.true(Site.new(Path.new('source'), Path.new('public')).error?)
+  }
+
+  t.test('Site.new with a valid source directory') fn (t) {
+    t.true(Site.new(Path.new('src'), Path.new('public')).ok?)
+  }
+
+  t.test('Site.generate with a valid path') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.generate('test.txt') fn (_) { Result.Ok('test') }
+    t.true(site.wait.ok?)
+    t.equal(read(dir.path.join('test.txt')), Result.Ok('test'))
+  }
+
+  t.test('Site.generate with an invalid path') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.files.output = Path.new('/invalid')
+    site.generate('test.txt') fn (_) { Result.Ok('test') }
+    t.true(site.wait.error?)
+  }
+
+  t.test('Site.copy') fn (t) {
+    let in = TempPath.directory("{t.id}-in")
+    let out = TempPath.directory("{t.id}-out")
+
+    write(in.path.join('test.txt'), 'test')
+
+    let site = Site.new(in.path.clone, out.path.clone).unwrap
+
+    site.copy('*.txt')
+    t.true(site.wait.ok?)
+    t.equal(read(out.path.join('test.txt')), Result.Ok('test'))
+  }
+
+  t.test('Site.copy with an invalid path') fn (t) {
+    let in = TempPath.directory("{t.id}-in")
+    let out = Path.new('/invalid')
+
+    write(in.path.join('test.txt'), 'test')
+
+    let site = Site.new(in.path.clone, out.clone).unwrap
+
+    site.copy('*.txt')
+    t.true(site.wait.error?)
+  }
+
+  t.test('Site.page with the index option') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "title": "test",
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('foo.md'), md)
+
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.page('*.md', index: true) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.ok?)
+    t.equal(read(dir.path.join('foo/index.html')), Result.Ok("<p>\ntest</p>"))
+  }
+
+  t.test('Site.page without the index option') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "title": "test",
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('foo.md'), md)
+
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.page('*.md', index: false) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.ok?)
+    t.equal(read(dir.path.join('foo.html')), Result.Ok("<p>\ntest</p>"))
+  }
+
+  t.test('Site.page with an invalid Markdown file') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('foo.md'), md)
+
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.page('*.md', index: false) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.error?)
+  }
+
+  t.test('Site.page with an invalid path') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "title": "test",
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('foo.md'), md)
+
+    let site = Site.new(dir.path.clone, Path.new('/invalid')).unwrap
+
+    site.page('*.md', index: false) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.error?)
+  }
+}

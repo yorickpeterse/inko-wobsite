@@ -1,0 +1,40 @@
+import builder.html
+import std.test.Tests
+import wobsite.markdown.(Admonitions, SyntaxHighlight)
+
+fn pub tests(t: mut Tests) {
+  t.test('SyntaxHighlight.run') fn (t) {
+    let doc = html.Document.fragment
+
+    doc.pre.code.attr('data-language', 'inko').text('# test')
+    SyntaxHighlight.new.run(doc)
+
+    t.equal(
+      doc.to_string,
+      '\
+        <div class="highlight">\
+          <pre class="highlight">\
+            <code><span class="c"># test</span></code>\
+          </pre>\
+        </div>\
+      '
+    )
+  }
+
+  t.test('Admonitions.run') fn (t) {
+    let doc = html.Document.fragment
+
+    doc.div.attr('class', 'info').text('Info message')
+    Admonitions.new.run(doc)
+
+    t.equal(
+      doc.to_string,
+      '\
+        <div class="admonition info">\
+          <i class="icon"></i>\
+          <div class="text">Info message</div>\
+        </div>\
+      '
+    )
+  }
+}

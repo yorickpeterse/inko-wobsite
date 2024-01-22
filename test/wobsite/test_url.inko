@@ -1,0 +1,11 @@
+import std.test.Tests
+import wobsite.url.(normalize)
+
+fn pub tests(t: mut Tests) {
+  t.test('url.normalize') fn (t) {
+    t.equal(
+      normalize("THIS is a    title 123 it's great"),
+      'this-is-a-title-123-its-great'
+    )
+  }
+}

@@ -16,6 +16,13 @@ jobs:
     steps:
       - run: microdnf install --quiet --assumeyes tar git
       - uses: actions/checkout@v4
+      - uses: actions/cache@v3
+        id: test
+        with:
+          path: |
+            build
+            ~/.local/share/inko/packages
+          key: ${{ runner.os }}
       - run: inko --version
       - run: inko pkg sync
       - run: inko test

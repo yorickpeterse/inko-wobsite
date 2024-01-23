@@ -21,6 +21,26 @@ fn pub tests(t: mut Tests) {
     )
   }
 
+  t.test('SyntaxHighlight.run with a nested code block') fn (t) {
+    let doc = html.Document.fragment
+
+    doc.div.div.pre.code.attr('data-language', 'inko').text('# test')
+    SyntaxHighlight.new.run(doc)
+
+    t.equal(
+      doc.to_string,
+      '\
+        <div>\
+          <div>\
+            <div class="highlight">\
+              <pre class="highlight"><code><span class="c"># test</span></code></pre>\
+            </div>\
+          </div>\
+        </div>\
+      '
+    )
+  }
+
   t.test('Admonitions.run') fn (t) {
     let doc = html.Document.fragment
 

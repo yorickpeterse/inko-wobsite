@@ -35,20 +35,16 @@ class pub SyntaxHighlight {
     }
   }
 
-  fn mut replace(node: mut html.Node) {
-    let el = match node {
-      case Element(el) if el.name == 'pre' and el.nodes.size == 1 -> el
-      case _ -> return
-    }
-
+  fn mut replace(element: mut html.Element) {
     # We modify the `pre` element in-place, as swapping it with the new element
     # results in dropping of the old element while references (as part of the
     # iteration) to it still exist.
-    match highlight(el) {
+    match highlight(element) {
       case Some({ @name = name, @attributes = attr, @nodes = nodes }) -> {
-        el.name = name
-        el.attributes = attr
-        el.nodes = nodes
+        element.name = name
+        element.attributes = attr
+        element.nodes = nodes
+        {}
       }
       case _ -> {}
     }
@@ -57,7 +53,18 @@ class pub SyntaxHighlight {
 
 impl Filter for SyntaxHighlight {
   fn pub mut run(document: mut html.Document) {
-    document.nodes.iter_mut.each_with_index fn (idx, node) { replace(node) }
+    let nodes = document.nodes.iter_mut.to_array
+
+    loop {
+      match nodes.pop {
+        case Some(Element(el)) if el.name == 'pre' and el.nodes.size == 1 -> {
+          replace(el)
+        }
+        case Some(Element(el)) -> nodes.append(el.nodes.iter_mut.to_array)
+        case Some(_) -> {}
+        case _ -> break
+      }
+    }
   }
 }
 

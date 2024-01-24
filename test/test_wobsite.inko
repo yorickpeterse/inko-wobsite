@@ -10,7 +10,17 @@ import std.json.Json
 import std.string.ToString
 import std.test.Tests
 import std.time.DateTime
-import wobsite.(Errors, Files, Hashes, Site, Page, ParseError, UpdateAssetLinks)
+import wobsite.(
+  Errors,
+  Files,
+  FrontMatter,
+  FrontMatterError,
+  Hashes,
+  Page,
+  PageError,
+  Site,
+  UpdateAssetLinks,
+)
 
 fn read(path: ref Path) -> Result[String, io.Error] {
   let bytes = ByteArray.new
@@ -94,19 +104,28 @@ fn pub tests(t: mut Tests) {
     t.equal(copy.get('/foo'), Option.Some('123'))
   }
 
-  t.test('ParseError.to_string') fn (t) {
+  t.test('PageError.to_string') fn (t) {
     t.equal(
-      ParseError.Io(Path.new('test'), io.Error.NotFound).to_string,
+      PageError.Io(Path.new('test'), io.Error.NotFound).to_string,
       "failed to read test: the resource isn't found"
     )
 
     t.equal(
-      ParseError.FrontMatter(Path.new('test'), 'foo').to_string,
-      "failed to parse the front matter of test: the 'foo' key is invalid"
+      PageError
+        .FrontMatter(Path.new('test'), FrontMatterError.InvalidKey('foo'))
+        .to_string,
+      "failed to parse the front matter of test: the key 'foo' is missing or invalid"
     )
 
     t.equal(
-      ParseError.Markdown(Path.new('test'), 'foo').to_string,
+      PageError
+        .FrontMatter(Path.new('test'), FrontMatterError.InvalidJson('foo'))
+        .to_string,
+      "failed to parse the front matter of test: foo"
+    )
+
+    t.equal(
+      PageError.Markdown(Path.new('test'), 'foo').to_string,
       'failed to parse the Markdown of test: foo'
     )
   }
@@ -158,9 +177,11 @@ fn pub tests(t: mut Tests) {
   t.test('Page.to_html') fn (t) {
     let filters = [ExampleFilter {} as Filter]
     let page = Page {
-      @title = 'Foo',
+      @front_matter = FrontMatter {
+        @title = 'Foo',
+        @date = DateTime.utc,
+      },
       @url = '/foo/',
-      @date = DateTime.utc,
       @source_path = Path.new('foo'),
       @body = markdown.Document.parse('foo').unwrap,
     }

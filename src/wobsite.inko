@@ -56,8 +56,26 @@ impl Clone[Hashes] for Hashes {
   }
 }
 
-# An error produced while parsing a Markdown document.
-class pub enum ParseError {
+# An error that may be produced when parsing JSON front matter.
+class pub enum FrontMatterError {
+  # The JSON syntax is invalid.
+  case InvalidJson(String)
+
+  # A required key is missing or invalid.
+  case InvalidKey(String)
+}
+
+impl ToString for FrontMatterError {
+  fn pub to_string -> String {
+    match self {
+      case InvalidJson(v) -> "the JSON front matter is invalid: {v}"
+      case InvalidKey(v) -> "the key '{v}' is missing or invalid"
+    }
+  }
+}
+
+# An error that may be produced when parsing a Markdown document.
+class pub enum PageError {
   # An IO operation (such as reading the Markdown file) failed.
   #
   # The arguments of this case are:
@@ -66,13 +84,13 @@ class pub enum ParseError {
   # 1. The IO error that occurred
   case Io(Path, io.Error)
 
-  # The front matter is invalid.
+  # The JSON front matter is invalid.
   #
   # The arguments of this case are:
   #
   # 1. The path of the file that couldn't be parsed
-  # 1. The front matter key that has an invalid value
-  case FrontMatter(Path, String)
+  # 1. The error produced while parsing the front matter.
+  case FrontMatter(Path, FrontMatterError)
 
   # The Markdown is invalid.
   #
@@ -83,28 +101,59 @@ class pub enum ParseError {
   case Markdown(Path, String)
 }
 
-impl ToString for ParseError {
+impl ToString for PageError {
   fn pub to_string -> String {
     match self {
       case Io(p, e) -> "failed to read {p}: {e}"
-      case FrontMatter(p, k) -> {
-        "failed to parse the front matter of {p}: the '{k}' key is invalid"
+      case FrontMatter(p, InvalidJson(m)) -> {
+        "failed to parse the front matter of {p}: {m}"
+      }
+      case FrontMatter(p, m) -> {
+        "failed to parse the front matter of {p}: {m}"
       }
       case Markdown(p, v) -> "failed to parse the Markdown of {p}: {v}"
     }
   }
 }
 
-# A page backed by a Markdown document.
-class pub Page {
+# A type storing the parsed front matter of a document.
+class pub FrontMatter {
   # The title of the page.
   let pub @title: String
 
-  # The URL of the page.
-  let pub @url: String
-
   # The date at which the page is created.
   let pub @date: DateTime
+
+  # Parses JSON front matter from a `String`.
+  fn pub static parse(string: String) -> Result[FrontMatter, FrontMatterError] {
+    let json = try Json
+      .parse(string)
+      .map_error fn (e) { FrontMatterError.InvalidJson(e.to_string) }
+
+    let title = match json.query.key('title').as_string {
+      case Some(v) -> v
+      case _ -> throw FrontMatterError.InvalidKey('title')
+    }
+
+    let date = match json.query.key('date').as_string {
+      case Some(v) -> match parse_date(v) {
+        case Some(v) -> v
+        case _ -> throw FrontMatterError.InvalidKey('date')
+      }
+      case _ -> DateTime.utc
+    }
+
+    Result.Ok(FrontMatter { @title = title, @date = date })
+  }
+}
+
+# A page backed by a Markdown document.
+class pub Page {
+  # The JSON front matter.
+  let pub @front_matter: FrontMatter
+
+  # The URL of the page.
+  let pub @url: String
 
   # The path to the source file of this page.
   let pub @source_path: Path
@@ -120,7 +169,7 @@ class pub Page {
   fn pub static parse_file(
     source: ref Path,
     path: ref Path,
-  ) -> Result[Page, ParseError] {
+  ) -> Result[Page, PageError] {
     let uri = path.strip_prefix(source).unwrap.with_extension('').to_string
     let url = if uri == 'index' { '/' } else { "/{uri}/" }
     let data = ByteArray.new
@@ -128,38 +177,33 @@ class pub Page {
     try ReadOnlyFile
       .new(path)
       .then fn (f) { f.read_all(data) }
-      .map_error fn (e) { ParseError.Io(path.clone, e) }
+      .map_error fn (e) { PageError.Io(path.clone, e) }
 
     let front_md = markdown.split_front_matter(data.into_string)
-    let json = try Json
-      .parse(front_md.0)
-      .map_error fn (e) { ParseError.Markdown(path.clone, e.to_string) }
-
-    let title = match json.query.key('title').as_string {
-      case Some(v) -> v
-      case _ -> throw ParseError.FrontMatter(path.clone, 'title')
-    }
-
-    let date = match json.query.key('date').as_string {
-      case Some(v) -> match parse_date(v) {
-        case Some(v) -> v
-        case _ -> throw ParseError.FrontMatter(path.clone, 'date')
-      }
-      case _ -> DateTime.utc
-    }
+    let front = try FrontMatter.parse(front_md.0)
+      .map_error fn (e) { PageError.FrontMatter(path.clone, e) }
 
     let doc = try markdown
       .Document
       .parse(front_md.1)
-      .map_error fn (e) { ParseError.Markdown(path.clone, e.to_string) }
+      .map_error fn (e) { PageError.Markdown(path.clone, e.to_string) }
 
     Result.Ok(Page {
-      @title = title,
+      @front_matter = front,
       @url = url,
-      @date = date,
       @source_path = path.clone,
       @body = doc,
     })
+  }
+
+  # Returns the title of the page.
+  fn pub title -> String {
+    @front_matter.title
+  }
+
+  # Returns the date at which the page is created.
+  fn pub date -> ref DateTime {
+    @front_matter.date
   }
 
   # Converts the Markdown to an HTML document.

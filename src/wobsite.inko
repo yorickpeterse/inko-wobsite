@@ -15,6 +15,7 @@ import std.sys.(exit)
 import std.time.DateTime
 import wobsite.fnmatch
 import wobsite.time.(parse_date)
+import wobsite.url.(file_url)
 
 # A type that maps asset paths/URIs to their checksums/hashes.
 class Hashes {
@@ -170,8 +171,7 @@ class pub Page {
     source: ref Path,
     path: ref Path,
   ) -> Result[Page, PageError] {
-    let uri = path.strip_prefix(source).unwrap.with_extension('').to_string
-    let url = if uri == 'index' { '/' } else { "/{uri}/" }
+    let url = file_url(source, path)
     let data = ByteArray.new
 
     try ReadOnlyFile

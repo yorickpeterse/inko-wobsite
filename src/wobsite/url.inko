@@ -1,3 +1,5 @@
+import std.fs.path.Path
+
 let TAB = 9
 let LF = 10
 let CR = 13
@@ -61,4 +63,15 @@ fn pub normalize(string: String) -> String {
   }
 
   url.into_string
+}
+
+# Returns the relative URL for a file path in a directory.
+fn pub file_url(directory: ref Path, path: ref Path) -> String {
+  let rel = path
+    .strip_prefix(directory)
+    .unwrap_or_else fn { path.clone }
+    .with_extension('')
+    .to_string
+
+  if rel == 'index' { '/' } else { "/{rel}/" }
 }

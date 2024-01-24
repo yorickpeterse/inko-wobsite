@@ -1,11 +1,27 @@
+import std.fs.path.Path
 import std.test.Tests
-import wobsite.url.(normalize)
+import wobsite.url
 
 fn pub tests(t: mut Tests) {
   t.test('url.normalize') fn (t) {
     t.equal(
-      normalize("THIS is a    title 123 it's great"),
+      url.normalize("THIS is a    title 123 it's great"),
       'this-is-a-title-123-its-great'
     )
+  }
+
+  t.test('url.url_for_file') fn (t) {
+    t.equal(
+      url.file_url(Path.new('source'), Path.new('source/foo/bar.md')),
+      '/foo/bar/'
+    )
+
+    t.equal(
+      url.file_url(Path.new('source'), Path.new('bar/foo/bar.md')),
+      '/bar/foo/bar/'
+    )
+
+    t.equal(url.file_url(Path.new('source'), Path.new('source/index.md')), '/')
+    t.equal(url.file_url(Path.new('source'), Path.new('index.md')), '/')
   }
 }

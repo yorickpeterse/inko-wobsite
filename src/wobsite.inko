@@ -359,9 +359,11 @@ class UpdateAssetLinks {
 
   fn link(link: mut html.Element) {
     match link.attributes.opt('rel') {
-      case Some('stylesheet' or 'icon') -> match link.attributes.opt('href') {
-        case Some(url) -> link.attr('href', hashed_url(url))
-        case _ -> return
+      case Some('stylesheet' or 'icon' or 'preload') -> {
+        match link.attributes.opt('href') {
+          case Some(url) -> link.attr('href', hashed_url(url))
+          case _ -> return
+        }
       }
       case _ -> return
     }

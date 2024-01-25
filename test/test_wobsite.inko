@@ -279,6 +279,7 @@ fn pub tests(t: mut Tests) {
 
     let html = html.Document.fragment
 
+    html.link.attr('rel', 'preload').attr('href', '/style.css')
     html.link.attr('rel', 'stylesheet').attr('href', '/style.css')
     html.link.attr('rel', 'stylesheet').attr('href', '../../style.css')
     html.link.attr('rel', 'stylesheet').attr('href', '/missing.css')
@@ -291,6 +292,7 @@ fn pub tests(t: mut Tests) {
     t.equal(
       html.to_string,
       '\
+        <link rel="preload" href="/style.css?hash=111" />\
         <link rel="stylesheet" href="/style.css?hash=111" />\
         <link rel="stylesheet" href="../../style.css?hash=111" />\
         <link rel="stylesheet" href="/missing.css" />\

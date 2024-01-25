@@ -322,6 +322,7 @@ impl ToString for Errors {
 # query string to each relevant asset link.
 class UpdateAssetLinks {
   let @files: ref Files
+  let @url: String
 
   fn run(document: mut html.Document) {
     let nodes = document.nodes.iter_mut.to_array
@@ -365,7 +366,25 @@ class UpdateAssetLinks {
   }
 
   fn hashed_url(url: String) -> String {
-    match @files.hash(url) {
+    let key = if url.starts_with?('..') {
+      let steps = url.split('/').take_while fn (v) { v == '..' }.count
+      let mut pending = steps
+      let chunks = @url.split('/').to_array
+
+      while pending > 0 {
+        chunks.pop
+        pending -= 1
+      }
+
+      let base = String.join(chunks.into_iter, '/')
+      let rel = String.join(url.split('/').skip(steps), '/')
+
+      "{base}/{rel}"
+    } else {
+      url
+    }
+
+    match @files.hash(key) {
       case Some(v) -> "{url}?hash={v}"
       case _ -> url
     }
@@ -599,6 +618,7 @@ class async Worker {
       }
     }
 
+    let url = page.url
     let html = match layout.call(@files, page) {
       case Ok(v) -> v
       case Error(e) -> {
@@ -607,7 +627,7 @@ class async Worker {
       }
     }
 
-    UpdateAssetLinks { @files = @files }.run(html)
+    UpdateAssetLinks { @files = @files, @url = url }.run(html)
 
     let status = match target
       .directory

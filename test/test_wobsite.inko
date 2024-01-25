@@ -280,17 +280,19 @@ fn pub tests(t: mut Tests) {
     let html = html.Document.fragment
 
     html.link.attr('rel', 'stylesheet').attr('href', '/style.css')
+    html.link.attr('rel', 'stylesheet').attr('href', '../../style.css')
     html.link.attr('rel', 'stylesheet').attr('href', '/missing.css')
     html.link.attr('rel', 'icon').attr('href', '/favicon.ico')
     html.link.attr('rel', 'foobar').attr('href', '/test.jpg')
     html.img.attr('src', '/test.png')
     html.script.attr('src', '/test.js')
-    UpdateAssetLinks { @files = files }.run(html)
+    UpdateAssetLinks { @files = files, @url = '/foo/bar/' }.run(html)
 
     t.equal(
       html.to_string,
       '\
         <link rel="stylesheet" href="/style.css?hash=111" />\
+        <link rel="stylesheet" href="../../style.css?hash=111" />\
         <link rel="stylesheet" href="/missing.css" />\
         <link rel="icon" href="/favicon.ico?hash=222" />\
         <link rel="foobar" href="/test.jpg" />\
@@ -298,6 +300,44 @@ fn pub tests(t: mut Tests) {
         <script src="/test.js?hash=555"></script>\
       '
     )
+  }
+
+  t.test('UpdateAssetLinks.hashed_url') fn (t) {
+    let files = Files {
+      @source = Path.new('source'),
+      @output = Path.new('public'),
+      @files = [],
+      @hashes = Hashes.new,
+    }
+
+    files.hashes.mapping.set('/style.css', '123')
+
+    let assets = UpdateAssetLinks { @files = files, @url = '/' }
+
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
+
+    assets.url = '/index.html'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
+
+    assets.url = '/foo'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
+
+    assets.url = '/foo/'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
+
+    assets.url = '/foo/bar'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css')
+    t.equal(assets.hashed_url('../../style.css'), '../../style.css?hash=123')
+
+    assets.url = '/foo/bar/'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css')
+    t.equal(assets.hashed_url('../../style.css'), '../../style.css?hash=123')
   }
 
   t.test('Site.new with a missing source directory') fn (t) {

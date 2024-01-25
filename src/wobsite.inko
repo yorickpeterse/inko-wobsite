@@ -17,6 +17,8 @@ import wobsite.fnmatch
 import wobsite.time.(parse_date)
 import wobsite.url.(file_url)
 
+let INDEX_FILE = 'index.md'
+
 # A type that maps asset paths/URIs to their checksums/hashes.
 class Hashes {
   # The keys of this map start with a `/`, such that relative URLs such as
@@ -605,7 +607,7 @@ class async Worker {
   ) {
     let source = recover source
     let rel_source = source.strip_prefix(@files.source).unwrap
-    let target = if rel_source.tail == 'index.md' {
+    let target = if rel_source.tail == INDEX_FILE {
       @files.output.join(rel_source.with_extension('html'))
     } else {
       @files.output.join(rel_source.with_extension('').join('index.html'))

@@ -21,7 +21,16 @@ fn pub tests(t: mut Tests) {
       '/bar/foo/bar/'
     )
 
+    t.equal(
+      url.file_url(Path.new('source'), Path.new('bar/foo/index.md')),
+      '/bar/foo/'
+    )
+
     t.equal(url.file_url(Path.new('source'), Path.new('source/index.md')), '/')
     t.equal(url.file_url(Path.new('source'), Path.new('index.md')), '/')
+    t.equal(
+      url.file_url(Path.new('source'), Path.new('source/foo/index.md')),
+      '/foo/'
+    )
   }
 }

@@ -1,4 +1,5 @@
 import std.fs.path.Path
+import wobsite.INDEX_FILE
 
 let TAB = 9
 let LF = 10
@@ -67,11 +68,13 @@ fn pub normalize(string: String) -> String {
 
 # Returns the relative URL for a file path in a directory.
 fn pub file_url(directory: ref Path, path: ref Path) -> String {
-  let rel = path
-    .strip_prefix(directory)
-    .unwrap_or_else fn { path.clone }
-    .with_extension('')
-    .to_string
+  let rel = path.strip_prefix(directory).unwrap_or_else fn { path.clone }
 
-  if rel == 'index' { '/' } else { "/{rel}/" }
+  if rel.to_string == INDEX_FILE {
+    '/'
+  } else if rel.tail == INDEX_FILE {
+    "/{rel.directory.with_extension('')}/"
+  } else {
+    "/{rel.with_extension('')}/"
+  }
 }

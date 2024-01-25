@@ -391,7 +391,7 @@ fn pub tests(t: mut Tests) {
     t.true(site.wait.error?)
   }
 
-  t.test('Site.page with the index option') fn (t) {
+  t.test('Site.page with a regular Markdown file') fn (t) {
     let dir = TempPath.directory(t.id)
     let md = '\
 ---
@@ -407,7 +407,7 @@ test'
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md', index: true) fn {
+    site.page('*.md') fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
@@ -415,7 +415,7 @@ test'
     t.equal(read(dir.path.join('foo/index.html')), Result.Ok("<p>\ntest</p>"))
   }
 
-  t.test('Site.page without the index option') fn (t) {
+  t.test('Site.page with the index Markdown file') fn (t) {
     let dir = TempPath.directory(t.id)
     let md = '\
 ---
@@ -427,16 +427,16 @@ test'
 
 test'
 
-    write(dir.path.join('foo.md'), md)
+    write(dir.path.join('index.md'), md)
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md', index: false) fn {
+    site.page('*.md') fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
     t.true(site.wait.ok?)
-    t.equal(read(dir.path.join('foo.html')), Result.Ok("<p>\ntest</p>"))
+    t.equal(read(dir.path.join('index.html')), Result.Ok("<p>\ntest</p>"))
   }
 
   t.test('Site.page with an invalid Markdown file') fn (t) {
@@ -454,7 +454,7 @@ test'
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md', index: false) fn {
+    site.page('*.md') fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
@@ -477,7 +477,7 @@ test'
 
     let site = Site.new(dir.path.clone, Path.new('/dev/null/invalid')).unwrap
 
-    site.page('*.md', index: false) fn {
+    site.page('*.md') fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 

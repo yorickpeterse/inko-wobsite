@@ -501,22 +501,24 @@ class pub Site {
   # The `pattern` argument specifies the `fnmatch(3)` pattern to use for
   # determining the files to process.
   #
-  # The `index` argument decides the output file: if set to `true`, a file
-  # `example.md` is turned into `example/index.html`. If `false`, the output
-  # file is `example.html`.
-  #
   # The `builder` argument is a closure called for every file to process,
   # returning another closure used to build the final HTML document. In a
   # typical setting, this closure converts the Markdown to HTML and wraps it in
   # a layout of sorts.
+  #
+  # Input files are mapped to output files as follows:
+  #
+  # - `./source/index.md` results in `./public/index.html`
+  # - `./source/foo.md` results in `./public/foo/index.html`
+  # - `./source/foo/bar/index.md` results in `./public/foo/bar/index.html`
+  # - `./source/foo/bar.md` results in `./public/foo/bar/index.html`
   fn pub mut page(
     pattern: String,
-    index: Bool,
     builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
     @files.matching(pattern).each fn (path) {
       @pending += 1
-      spawn.page(recover path.clone, builder.call, index)
+      spawn.page(recover path.clone, builder.call)
     }
   }
 
@@ -600,14 +602,13 @@ class async Worker {
   fn async page(
     source: uni Path,
     layout: uni fn (ref Files, Page) -> Result[html.Document, String],
-    index: Bool,
   ) {
     let source = recover source
     let rel_source = source.strip_prefix(@files.source).unwrap
-    let target = if index {
-      @files.output.join(rel_source.with_extension('').join('index.html'))
-    } else {
+    let target = if rel_source.tail == 'index.md' {
       @files.output.join(rel_source.with_extension('html'))
+    } else {
+      @files.output.join(rel_source.with_extension('').join('index.html'))
     }
 
     let page = match Page.parse_file(@files.source, source) {

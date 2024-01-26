@@ -1,3 +1,3 @@
 require https://github.com/yorickpeterse/inko-builder 0.11.0 ae7b8cf3476dfc401408c493bd6d795bd0ac3ab2
 require https://github.com/yorickpeterse/inko-markdown 0.12.0 1fcbb6151d8bbba32cfb8a28e77d161fa158f652
-require https://github.com/yorickpeterse/inko-syntax 0.6.0 a5803af9ef58d593a7e410dcd536dd66ff7fddc4
+require https://github.com/yorickpeterse/inko-syntax 0.7.0 ad36c811b0ca25ba813b82014bf4d843636ac9d0

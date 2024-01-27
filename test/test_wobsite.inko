@@ -333,10 +333,15 @@ fn pub tests(t: mut Tests) {
 
     assets.url = '/foo/bar'
     t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
-    t.equal(assets.hashed_url('../style.css'), '../style.css')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
     t.equal(assets.hashed_url('../../style.css'), '../../style.css?hash=123')
 
     assets.url = '/foo/bar/'
+    t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
+    t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
+    t.equal(assets.hashed_url('../../style.css'), '../../style.css?hash=123')
+
+    assets.url = '/foo/bar/baz'
     t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
     t.equal(assets.hashed_url('../style.css'), '../style.css')
     t.equal(assets.hashed_url('../../style.css'), '../../style.css?hash=123')

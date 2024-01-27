@@ -78,3 +78,24 @@ fn pub file_url(directory: ref Path, path: ref Path) -> String {
     "/{rel.with_extension('')}/"
   }
 }
+
+fn pub relative_to_absolute(current: String, url: String) -> String {
+  let steps = url.split('/').take_while fn (v) { v == '..' }.count
+
+  # We add 1 here such that if the current URL is /foo/bar and we link to
+  # foo.css, the returned URL is /foo/foo.css, not /foo/bar/foo.css. In other
+  # words, the final component is treated as if it were a file instead of a
+  # directory.
+  let mut pending = steps + 1
+  let chunks = current.split('/').to_array
+
+  while pending > 0 {
+    chunks.pop
+    pending -= 1
+  }
+
+  let base = String.join(chunks.into_iter, '/')
+  let rel = String.join(url.split('/').skip(steps), '/')
+
+  "{base}/{rel}"
+}

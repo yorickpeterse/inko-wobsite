@@ -33,4 +33,18 @@ fn pub tests(t: mut Tests) {
       '/foo/'
     )
   }
+
+  t.test('url.relative_to_absolute') fn (t) {
+    t.equal(url.relative_to_absolute('/', '../style.css'), '/style.css')
+    t.equal(url.relative_to_absolute('/foo/', '../style.css'), '/style.css')
+    t.equal(url.relative_to_absolute('/foo/', 'style.css'), '/style.css')
+    t.equal(
+      url.relative_to_absolute('/foo/bar', '../style.css'),
+      '/style.css'
+    )
+    t.equal(
+      url.relative_to_absolute('/foo/bar/baz', '../style.css'),
+      '/foo/style.css'
+    )
+  }
 }

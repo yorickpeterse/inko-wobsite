@@ -15,7 +15,7 @@ import std.sys.(exit)
 import std.time.DateTime
 import wobsite.fnmatch
 import wobsite.time.(parse_date)
-import wobsite.url.(file_url)
+import wobsite.url.(file_url, relative_to_absolute)
 
 let INDEX_FILE = 'index.md'
 
@@ -371,19 +371,7 @@ class UpdateAssetLinks {
 
   fn hashed_url(url: String) -> String {
     let key = if url.starts_with?('..') {
-      let steps = url.split('/').take_while fn (v) { v == '..' }.count
-      let mut pending = steps
-      let chunks = @url.split('/').to_array
-
-      while pending > 0 {
-        chunks.pop
-        pending -= 1
-      }
-
-      let base = String.join(chunks.into_iter, '/')
-      let rel = String.join(url.split('/').skip(steps), '/')
-
-      "{base}/{rel}"
+      relative_to_absolute(@url, url)
     } else {
       url
     }

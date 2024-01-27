@@ -371,7 +371,7 @@ class UpdateAssetLinks {
 
   fn hashed_url(url: String) -> String {
     let key = if url.starts_with?('..') {
-      relative_to_absolute(@url, url)
+      relative_to_absolute(@url, url, as_file: true)
     } else {
       url
     }

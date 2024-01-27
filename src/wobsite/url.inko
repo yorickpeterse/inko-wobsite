@@ -79,14 +79,22 @@ fn pub file_url(directory: ref Path, path: ref Path) -> String {
   }
 }
 
-fn pub relative_to_absolute(current: String, url: String) -> String {
+# Converts a relative URL to an absolute URL, based on the current/source URL of
+# the document that links to the relative URL.
+#
+# The `current` argument specifies the URL of the document we are linking
+# _from_, while `url` specifies the relative URL linked _to_.
+#
+# If `as_file` is set to `true`, the last component of the target URL is treated
+# as if it were a file instead of a directory. This affects how many times we
+# have to move "up" in the returned relative URL.
+fn pub relative_to_absolute(
+  current: String,
+  url: String,
+  as_file: Bool,
+) -> String {
   let steps = url.split('/').take_while fn (v) { v == '..' }.count
-
-  # We add 1 here such that if the current URL is /foo/bar and we link to
-  # foo.css, the returned URL is /foo/foo.css, not /foo/bar/foo.css. In other
-  # words, the final component is treated as if it were a file instead of a
-  # directory.
-  let mut pending = steps + 1
+  let mut pending = steps + as_file.to_int
   let chunks = current.split('/').to_array
 
   while pending > 0 {

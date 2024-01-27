@@ -35,16 +35,29 @@ fn pub tests(t: mut Tests) {
   }
 
   t.test('url.relative_to_absolute') fn (t) {
-    t.equal(url.relative_to_absolute('/', '../style.css'), '/style.css')
-    t.equal(url.relative_to_absolute('/foo/', '../style.css'), '/style.css')
-    t.equal(url.relative_to_absolute('/foo/', 'style.css'), '/style.css')
     t.equal(
-      url.relative_to_absolute('/foo/bar', '../style.css'),
+      url.relative_to_absolute('/', '../style.css', as_file: true),
       '/style.css'
     )
     t.equal(
-      url.relative_to_absolute('/foo/bar/baz', '../style.css'),
+      url.relative_to_absolute('/foo/', '../style.css', as_file: true),
+      '/style.css'
+    )
+    t.equal(
+      url.relative_to_absolute('/foo/', 'style.css', as_file: true),
+      '/style.css'
+    )
+    t.equal(
+      url.relative_to_absolute('/foo/bar', '../style.css', as_file: true),
+      '/style.css'
+    )
+    t.equal(
+      url.relative_to_absolute('/foo/bar/baz', '../style.css', as_file: true),
       '/foo/style.css'
+    )
+    t.equal(
+      url.relative_to_absolute('/articles/article1', 'article2', as_file: true),
+      '/articles/article2'
     )
   }
 }

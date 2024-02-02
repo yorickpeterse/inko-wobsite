@@ -8,6 +8,8 @@ fn pub tests(t: mut Tests) {
       url.normalize("THIS is a    title 123 it's great"),
       'this-is-a-title-123-its-great'
     )
+
+    t.equal(url.normalize('foo 1.2,3'), 'foo-1-23')
   }
 
   t.test('url.url_for_file') fn (t) {

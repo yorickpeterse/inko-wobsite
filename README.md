@@ -5,7 +5,7 @@ after [xkcd 148](https://xkcd.com/148/).
 
 ## Requirements
 
-- Inko main (for now)
+- Inko 0.14.0 or newer
 
 ## Installation
 

@@ -10,7 +10,7 @@ after [xkcd 148](https://xkcd.com/148/).
 ## Installation
 
 ```bash
-inko pkg add github.com/yorickpeterse/inko-wobsite 0.12.0
+inko pkg add github.com/yorickpeterse/inko-wobsite 0.13.0
 inko pkg sync
 ```
 

@@ -80,7 +80,7 @@ import wobsite.(Site, Page)
 class async Main {
   fn async main {
     Site.build fn (site) {
-      site.page('/index.md', index: false) fn {
+      site.page('/index.md') fn {
         recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
       }
     }

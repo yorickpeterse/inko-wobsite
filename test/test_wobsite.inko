@@ -414,12 +414,36 @@ test'
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md') fn {
+    site.page('*.md', index: true) fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
     t.true(site.wait.ok?)
     t.equal(read(dir.path.join('foo/index.html')), Result.Ok("<p>\ntest</p>"))
+  }
+
+  t.test('Site.page with a regular Markdown file and index: false') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "title": "test",
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('foo.md'), md)
+
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.page('*.md', index: false) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.ok?)
+    t.equal(read(dir.path.join('foo.html')), Result.Ok("<p>\ntest</p>"))
   }
 
   t.test('Site.page with the index Markdown file') fn (t) {
@@ -438,7 +462,31 @@ test'
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md') fn {
+    site.page('*.md', index: true) fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    }
+
+    t.true(site.wait.ok?)
+    t.equal(read(dir.path.join('index.html')), Result.Ok("<p>\ntest</p>"))
+  }
+
+  t.test('Site.page with the index Markdown file and index: false') fn (t) {
+    let dir = TempPath.directory(t.id)
+    let md = '\
+---
+{
+  "title": "test",
+  "date": "2024-01-01T13:00:00Z"
+}
+---
+
+test'
+
+    write(dir.path.join('index.md'), md)
+
+    let site = Site.new(dir.path.clone, dir.path.clone).unwrap
+
+    site.page('*.md', index: false) fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
@@ -461,7 +509,7 @@ test'
 
     let site = Site.new(dir.path.clone, dir.path.clone).unwrap
 
-    site.page('*.md') fn {
+    site.page('*.md', index: true) fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 
@@ -484,7 +532,7 @@ test'
 
     let site = Site.new(dir.path.clone, Path.new('/dev/null/invalid')).unwrap
 
-    site.page('*.md') fn {
+    site.page('*.md', index: true) fn {
       recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
     }
 

@@ -1,14 +1,14 @@
 import builder.html
-import markdown.html.Filter
-import std.set.Set
-import syntax.Languages
-import syntax.format.Html
+import markdown.html (Filter)
+import std.set (Set)
+import syntax (Languages)
+import syntax.format (Html)
 
 class pub SyntaxHighlight {
   let @languages: Languages
 
   fn pub static new -> SyntaxHighlight {
-    SyntaxHighlight { @languages = Languages.new }
+    SyntaxHighlight(Languages.new)
   }
 
   fn mut highlight(pre: ref html.Element) -> Option[html.Element] {
@@ -17,10 +17,9 @@ class pub SyntaxHighlight {
       case _ -> return Option.None
     }
 
-    let lang = try code
-      .attributes
-      .opt('data-language')
-      .then(fn (v) { @languages.get(v) })
+    let lang = try code.attributes.opt('data-language').then(fn (v) {
+      @languages.get(v)
+    })
 
     let bytes = match code.nodes.opt(0) {
       case Some(Text(v)) -> v.to_byte_array
@@ -28,9 +27,11 @@ class pub SyntaxHighlight {
     }
 
     match Html.new.format(lang.lexer(bytes)) {
-      case { @nodes = nodes } -> match nodes.pop {
-        case Some(Element(el)) -> Option.Some(el)
-        case _ -> Option.None
+      case { @nodes = nodes } -> {
+        match nodes.pop {
+          case Some(Element(el)) -> Option.Some(el)
+          case _ -> Option.None
+        }
       }
     }
   }
@@ -93,13 +94,13 @@ class pub Admonitions {
     types.insert('warn')
     types.insert('discuss')
 
-    Admonitions {
-      @types = types,
-      @class = 'admonition',
-      @icon_element = 'i',
-      @icon_class = 'icon',
-      @text_class = 'text',
-    }
+    Admonitions(
+      types: types,
+      class: 'admonition',
+      icon_element: 'i',
+      icon_class: 'icon',
+      text_class: 'text',
+    )
   }
 
   fn replace(node: mut html.Node) {
@@ -117,7 +118,7 @@ class pub Admonitions {
     let icon = note.element(@icon_element)
     let text = note.element('div')
 
-    note.attr('class', "{@class} {kind}")
+    note.attr('class', '${@class} ${kind}')
     icon.attr('class', @icon_class)
     text.attr('class', @text_class)
     text.nodes = nodes
@@ -126,6 +127,6 @@ class pub Admonitions {
 
 impl Filter for Admonitions {
   fn pub mut run(document: mut html.Document) {
-    document.nodes.iter_mut.each fn (node) { replace(node) }
+    document.nodes.iter_mut.each(fn (node) { replace(node) })
   }
 }

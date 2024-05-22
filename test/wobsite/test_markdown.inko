@@ -1,9 +1,9 @@
 import builder.html
-import std.test.Tests
-import wobsite.markdown.(Admonitions, SyntaxHighlight)
+import std.test (Tests)
+import wobsite.markdown (Admonitions, SyntaxHighlight)
 
 fn pub tests(t: mut Tests) {
-  t.test('SyntaxHighlight.run') fn (t) {
+  t.test('SyntaxHighlight.run', fn (t) {
     let doc = html.Document.fragment
 
     doc.pre.code.attr('data-language', 'inko').text('# test')
@@ -11,17 +11,19 @@ fn pub tests(t: mut Tests) {
 
     t.equal(
       doc.to_string,
-      '\
-        <div class="highlight">\
-          <pre class="highlight">\
-            <code><span class="c"># test</span></code>\
-          </pre>\
-        </div>\
       '
+<div class="highlight">
+<pre class="highlight">
+<code><span class="c"># test</span></code>
+</pre>
+</div>
+      '
+        .trim
+        .replace('\n', ''),
     )
-  }
+  })
 
-  t.test('SyntaxHighlight.run with a nested code block') fn (t) {
+  t.test('SyntaxHighlight.run with a nested code block', fn (t) {
     let doc = html.Document.fragment
 
     doc.div.div.pre.code.attr('data-language', 'inko').text('# test')
@@ -29,19 +31,21 @@ fn pub tests(t: mut Tests) {
 
     t.equal(
       doc.to_string,
-      '\
-        <div>\
-          <div>\
-            <div class="highlight">\
-              <pre class="highlight"><code><span class="c"># test</span></code></pre>\
-            </div>\
-          </div>\
-        </div>\
       '
+<div>
+<div>
+<div class="highlight">
+<pre class="highlight"><code><span class="c"># test</span></code></pre>
+</div>
+</div>
+</div>
+      '
+        .trim
+        .replace('\n', ''),
     )
-  }
+  })
 
-  t.test('Admonitions.run') fn (t) {
+  t.test('Admonitions.run', fn (t) {
     let doc = html.Document.fragment
 
     doc.div.attr('class', 'info').text('Info message')
@@ -49,12 +53,14 @@ fn pub tests(t: mut Tests) {
 
     t.equal(
       doc.to_string,
-      '\
-        <div class="admonition info">\
-          <i class="icon"></i>\
-          <div class="text">Info message</div>\
-        </div>\
       '
+<div class="admonition info">
+<i class="icon"></i>
+<div class="text">Info message</div>
+</div>
+      '
+        .trim
+        .replace('\n', ''),
     )
-  }
+  })
 }

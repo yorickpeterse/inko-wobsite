@@ -1,5 +1,5 @@
-import std.fs.path.Path
-import wobsite.INDEX_FILE
+import std.fs.path (Path)
+import wobsite (INDEX_FILE)
 
 let TAB = 9
 let LF = 10
@@ -16,26 +16,23 @@ let URL_SAFE = [
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
   false, false, false, false, false, false, false, false, false, false, false,
-  false, true,  true,  false, true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  false, false, false, false, false, false, false, true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  false, false, false, false, true,  false, true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  false, false, false, true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-  true,  true
+  false, true, true, false, true, true, true, true, true, true, true, true,
+  true, true, false, false, false, false, false, false, false, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, false, false,
+  false, false, true, false, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, false, false, false, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true, true, true, true, true, true,
+  true, true, true, true, true, true, true, true,
 ]
 
 # Generates a URL-safe path of the given string (e.g. a blog post title).
@@ -51,7 +48,7 @@ fn pub normalize(string: String) -> String {
       case Some(DOT) -> url.push(HYPHEN)
       case Some(v) if URL_SAFE.get(v) -> url.push(v)
       case Some(TAB or LF or CR or SPACE) -> {
-        if url.last.unwrap_or(-1) != HYPHEN { url.push(HYPHEN) }
+        if url.last.or(-1) != HYPHEN { url.push(HYPHEN) }
 
         loop {
           match iter.peek {
@@ -70,14 +67,14 @@ fn pub normalize(string: String) -> String {
 
 # Returns the relative URL for a file path in a directory.
 fn pub file_url(directory: ref Path, path: ref Path) -> String {
-  let rel = path.strip_prefix(directory).unwrap_or_else fn { path.clone }
+  let rel = path.strip_prefix(directory).or_else(fn { path.clone })
 
   if rel.to_string == INDEX_FILE {
     '/'
   } else if rel.tail == INDEX_FILE {
-    "/{rel.directory.with_extension('')}/"
+    '/${rel.directory.with_extension('')}/'
   } else {
-    "/{rel.with_extension('')}/"
+    '/${rel.with_extension('')}/'
   }
 }
 
@@ -95,7 +92,7 @@ fn pub relative_to_absolute(
   url: String,
   as_file: Bool,
 ) -> String {
-  let steps = url.split('/').take_while fn (v) { v == '..' }.count
+  let steps = url.split('/').take_while(fn (v) { v == '..' }).count
   let mut pending = steps + as_file.to_int
   let chunks = current.split('/').to_array
 
@@ -107,5 +104,5 @@ fn pub relative_to_absolute(
   let base = String.join(chunks.into_iter, '/')
   let rel = String.join(url.split('/').skip(steps), '/')
 
-  "{base}/{rel}"
+  '${base}/${rel}'
 }

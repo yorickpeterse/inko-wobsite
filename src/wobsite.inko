@@ -1,21 +1,21 @@
 # A simple static site generator, written in Inko.
 import builder.html
 import markdown
-import markdown.html.Filter
-import std.clone.Clone
-import std.crypto.sha2.Sha256
-import std.fs.file.(ReadOnlyFile, WriteOnlyFile)
-import std.fs.path.Path
+import markdown.html (Filter)
+import std.clone (Clone)
+import std.crypto.sha2 (Sha256)
+import std.fs.file (ReadOnlyFile, WriteOnlyFile)
+import std.fs.path (Path)
 import std.io
-import std.iter.Stream
-import std.json.Json
-import std.stdio.STDERR
-import std.string.(StringBuffer, ToString)
-import std.sys.(exit)
-import std.time.DateTime
+import std.iter (Stream)
+import std.json (Json)
+import std.stdio (STDERR)
+import std.string (StringBuffer, ToString)
+import std.sys (exit)
+import std.time (DateTime)
 import wobsite.fnmatch
-import wobsite.time.(parse_date)
-import wobsite.url.(file_url, relative_to_absolute)
+import wobsite.time (parse_date)
+import wobsite.url (file_url, relative_to_absolute)
 
 let INDEX_FILE = 'index.md'
 
@@ -26,10 +26,10 @@ class Hashes {
   let @mapping: Map[String, String]
 
   fn static new -> Hashes {
-    Hashes { @mapping = Map.new }
+    Hashes(Map.new)
   }
 
-  fn mut add(path: ref Path, key: String) -> Result[Nil, io.Error] {
+  fn mut add(path: Path, key: String) -> Result[Nil, io.Error] {
     let bytes = ByteArray.new
     let file = try ReadOnlyFile.new(path)
     let hasher = Sha256.new
@@ -50,12 +50,12 @@ class Hashes {
 
 impl Clone[Hashes] for Hashes {
   fn pub clone -> Hashes {
-    Hashes {
-      @mapping = @mapping.iter.reduce(Map.new) fn (map, pair) {
+    Hashes(
+      @mapping.iter.reduce(Map.new, fn (map, pair) {
         map.set(pair.key.clone, pair.value.clone)
         map
-      }
-    }
+      }),
+    )
   }
 }
 
@@ -71,8 +71,8 @@ class pub enum FrontMatterError {
 impl ToString for FrontMatterError {
   fn pub to_string -> String {
     match self {
-      case InvalidJson(v) -> "the JSON front matter is invalid: {v}"
-      case InvalidKey(v) -> "the key '{v}' is missing or invalid"
+      case InvalidJson(v) -> 'the JSON front matter is invalid: ${v}'
+      case InvalidKey(v) -> "the key '${v}' is missing or invalid"
     }
   }
 }
@@ -107,14 +107,12 @@ class pub enum PageError {
 impl ToString for PageError {
   fn pub to_string -> String {
     match self {
-      case Io(p, e) -> "failed to read {p}: {e}"
+      case Io(p, e) -> 'failed to read ${p}: ${e}'
       case FrontMatter(p, InvalidJson(m)) -> {
-        "failed to parse the front matter of {p}: {m}"
+        'failed to parse the front matter of ${p}: ${m}'
       }
-      case FrontMatter(p, m) -> {
-        "failed to parse the front matter of {p}: {m}"
-      }
-      case Markdown(p, v) -> "failed to parse the Markdown of {p}: {v}"
+      case FrontMatter(p, m) -> 'failed to parse the front matter of ${p}: ${m}'
+      case Markdown(p, v) -> 'failed to parse the Markdown of ${p}: ${v}'
     }
   }
 }
@@ -129,9 +127,9 @@ class pub FrontMatter {
 
   # Parses JSON front matter from a `String`.
   fn pub static parse(string: String) -> Result[FrontMatter, FrontMatterError] {
-    let json = try Json
-      .parse(string)
-      .map_error fn (e) { FrontMatterError.InvalidJson(e.to_string) }
+    let json = try Json.parse(string).map_error(fn (e) {
+      FrontMatterError.InvalidJson(e.to_string)
+    })
 
     let title = match json.query.key('title').as_string {
       case Some(v) -> v
@@ -139,14 +137,16 @@ class pub FrontMatter {
     }
 
     let date = match json.query.key('date').as_string {
-      case Some(v) -> match parse_date(v) {
-        case Some(v) -> v
-        case _ -> throw FrontMatterError.InvalidKey('date')
+      case Some(v) -> {
+        match parse_date(v) {
+          case Some(v) -> v
+          case _ -> throw FrontMatterError.InvalidKey('date')
+        }
       }
       case _ -> DateTime.utc
     }
 
-    Result.Ok(FrontMatter { @title = title, @date = date })
+    Result.Ok(FrontMatter(title: title, date: date))
   }
 }
 
@@ -177,25 +177,22 @@ class pub Page {
     let data = ByteArray.new
 
     try ReadOnlyFile
-      .new(path)
-      .then fn (f) { f.read_all(data) }
-      .map_error fn (e) { PageError.Io(path.clone, e) }
+      .new(path.clone)
+      .then(fn (f) { f.read_all(data) })
+      .map_error(fn (e) { PageError.Io(path.clone, e) })
 
     let front_md = markdown.split_front_matter(data.into_string)
-    let front = try FrontMatter.parse(front_md.0)
-      .map_error fn (e) { PageError.FrontMatter(path.clone, e) }
-
-    let doc = try markdown
-      .Document
-      .parse(front_md.1)
-      .map_error fn (e) { PageError.Markdown(path.clone, e.to_string) }
-
-    Result.Ok(Page {
-      @front_matter = front,
-      @url = url,
-      @source_path = path.clone,
-      @body = doc,
+    let front = try FrontMatter.parse(front_md.0).map_error(fn (e) {
+      PageError.FrontMatter(path.clone, e)
     })
+
+    let doc = try markdown.Document.parse(front_md.1).map_error(fn (e) {
+      PageError.Markdown(path.clone, e.to_string)
+    })
+
+    Result.Ok(
+      Page(front_matter: front, url: url, source_path: path.clone, body: doc),
+    )
   }
 
   # Returns the title of the page.
@@ -215,7 +212,7 @@ class pub Page {
   fn pub to_html(filters: Array[Filter]) -> html.Document {
     let doc = @body.to_html
 
-    filters.into_iter.each fn (filter) { filter.run(doc) }
+    filters.into_iter.each(fn (filter) { filter.run(doc) })
     doc
   }
 }
@@ -245,24 +242,21 @@ class pub Files {
     let hashes = Hashes.new
     let iter = try source.list_all
 
-    try iter.try_each fn (res) {
+    try iter.try_each(fn (res) {
       match res {
         case Ok({ @type = File, @path = path }) -> {
-          try hashes.add(path, "/{path.strip_prefix(source).unwrap}")
+          try hashes.add(path.clone, '/${path.strip_prefix(source).get}')
           files.push(path)
           Result.Ok(nil)
         }
         case Ok(_) -> Result.Ok(nil)
         case Error(e) -> Result.Error(e)
       }
-    }
-
-    Result.Ok(Files {
-      @source = source,
-      @output = output,
-      @files = files,
-      @hashes = hashes,
     })
+
+    Result.Ok(
+      Files(source: source, output: output, files: files, hashes: hashes),
+    )
   }
 
   # Returns an iterator that yields all the source files matching the given
@@ -270,9 +264,9 @@ class pub Files {
   fn pub matching(pattern: String) -> Stream[ref Path] {
     let root = pattern.starts_with?('/')
 
-    @files.iter.select fn (path) {
-      fnmatch.match(pattern, "/{path.strip_prefix(@source).unwrap}", root)
-    }
+    @files.iter.select(fn (path) {
+      fnmatch.match(pattern, '/${path.strip_prefix(@source).get}', root)
+    })
   }
 
   fn hash(path: ref String) -> Option[String] {
@@ -282,12 +276,12 @@ class pub Files {
 
 impl Clone[Files] for Files {
   fn pub clone -> Files {
-    Files {
-      @source = @source.clone,
-      @output = @output.clone,
-      @files = @files.clone,
-      @hashes = @hashes.clone,
-    }
+    Files(
+      source: @source.clone,
+      output: @output.clone,
+      files: @files.clone,
+      hashes: @hashes.clone,
+    )
   }
 }
 
@@ -307,11 +301,12 @@ class pub Errors {
 
 impl ToString for Errors {
   fn pub to_string -> String {
-    let buf = @entries.iter.reduce(StringBuffer.new) fn (buf, entry) {
-      if buf.size > 0 { buf.push("\n\n") }
-      buf.push("{entry.0} \e[31;1merror:\e[0m\n  {entry.1}")
+    let buf = @entries.iter.reduce(StringBuffer.new, fn (buf, entry) {
+      if buf.size > 0 { buf.push('\n\n') }
+
+      buf.push('${entry.0} \e[31;1merror:\e[0m\n  ${entry.1}')
       buf
-    }
+    })
 
     buf.into_string
   }
@@ -377,7 +372,7 @@ class UpdateAssetLinks {
     }
 
     match @files.hash(key) {
-      case Some(v) -> "{url}?hash={v}"
+      case Some(v) -> '${url}?hash=${v}'
       case _ -> url
     }
   }
@@ -405,12 +400,12 @@ class pub Site {
   #
   # Building a website that consists of simple text and CSS files:
   #
-  #     import wobsite.Site
+  #     import wobsite (Site)
   #
-  #     Site.build fn (site) {
+  #     Site.build(fn (site) {
   #       site.copy('*.txt')
   #       site.copy('*.css')
-  #     }
+  #     })
   fn pub static build(func: fn (mut Site)) {
     let source = Path.new('source')
     let output = Path.new('public')
@@ -418,7 +413,7 @@ class pub Site {
     let site = match Site.new(source, output) {
       case Ok(site) -> site
       case Error(e) -> {
-        stderr.print("Failed to get the site's source files: {e}")
+        stderr.print("Failed to get the site's source files: ${e}")
         exit(1)
       }
     }
@@ -442,9 +437,9 @@ class pub Site {
   # This method also recursively gets all the source files to (potentially)
   # build. If this fails, an `Error(std.io.Error)` is returned.
   fn pub static new(source: Path, output: Path) -> Result[Site, io.Error] {
-    Files.new(source, output).map fn (files) {
-      Site { @files = files, @pending = 0, @status = Channel.new(size: 32) }
-    }
+    Files.new(source, output).map(fn (files) {
+      Site(files: files, pending: 0, status: Channel.new(size: 32))
+    })
   }
 
   # Schedule a job that generates an arbitrary file.
@@ -457,11 +452,11 @@ class pub Site {
   #
   # # Examples
   #
-  #     import wobsite.Site
+  #     import wobsite (Site)
   #
-  #     Site.build fn (site) {
+  #     Site.build(fn (site) {
   #       site.generate('feed.xml') fn (files) { 'Example content' }
-  #     }
+  #     })
   fn pub mut generate(
     path: String,
     builder: uni fn (ref Files) -> Result[String, String],
@@ -478,14 +473,14 @@ class pub Site {
   #
   # # Examples
   #
-  #     import wobsite.Site
+  #     import wobsite (Site)
   #
-  #     Site.build fn (site) { site.copy('*.css') }
+  #     Site.build(fn (site) { site.copy('*.css') })
   fn pub mut copy(pattern: String) {
-    @files.matching(pattern).each fn (path) {
+    @files.matching(pattern).each(fn (path) {
       @pending += 1
       spawn.copy(recover path.clone)
-    }
+    })
   }
 
   # Generates an HTML file from a Markdown file.
@@ -516,14 +511,14 @@ class pub Site {
     index: Bool,
     builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
-    @files.matching(pattern).each fn (path) {
+    @files.matching(pattern).each(fn (path) {
       @pending += 1
       spawn.page(recover path.clone, index, builder.call)
-    }
+    })
   }
 
   fn move wait -> Result[Nil, Errors] {
-    let errors = Errors { @entries = [] }
+    let errors = Errors([])
 
     while @pending > 0 {
       match @status.receive {
@@ -538,7 +533,7 @@ class pub Site {
   }
 
   fn spawn -> Worker {
-    Worker { @files = recover @files.clone, @status = @status }
+    Worker(files: recover @files.clone, status: @status)
   }
 }
 
@@ -576,8 +571,8 @@ class async Worker {
     let res = path
       .directory
       .create_directory_all
-      .then fn (_) { WriteOnlyFile.new(path) }
-      .then fn (f) { f.write_string(data) }
+      .then(fn (_) { WriteOnlyFile.new(path.clone) })
+      .then(fn (f) { f.write_string(data) })
 
     let status = match res {
       case Ok(_) -> recover Status.Ok
@@ -589,7 +584,7 @@ class async Worker {
 
   fn async copy(from: uni Path) {
     let from = recover from
-    let to = @files.output.join(from.strip_prefix(@files.source).unwrap)
+    let to = @files.output.join(from.strip_prefix(@files.source).get)
     let dir = to.directory
     let status = match dir.create_directory_all.then(fn (_) { from.copy(to) }) {
       case Ok(_) -> recover Status.Ok
@@ -605,7 +600,7 @@ class async Worker {
     layout: uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
     let source = recover source
-    let rel_source = source.strip_prefix(@files.source).unwrap
+    let rel_source = source.strip_prefix(@files.source).get
     let target = if rel_source.tail == INDEX_FILE or index.false? {
       @files.output.join(rel_source.with_extension('html'))
     } else {
@@ -629,13 +624,14 @@ class async Worker {
       }
     }
 
-    UpdateAssetLinks { @files = @files, @url = url }.run(html)
+    UpdateAssetLinks(files: @files, url: url).run(html)
 
-    let status = match target
-      .directory
-      .create_directory_all
-      .then(fn (_) { WriteOnlyFile.new(target) })
-      .then(fn (f) { f.write_string(html.to_string) })
+    let status = match
+      target
+        .directory
+        .create_directory_all
+        .then(fn (_) { WriteOnlyFile.new(target.clone) })
+        .then(fn (f) { f.write_string(html.to_string) })
     {
       case Ok(_) -> recover Status.Ok
       case Error(e) -> recover Status.Error(target.clone, e.to_string)

@@ -19,13 +19,13 @@ inko pkg sync
 To get started, create `src/main.inko` with the following contents:
 
 ```inko
-import wobsite.Site
+import wobsite (Site)
 
 class async Main {
   fn async main {
-    Site.build fn (site) {
+    Site.build(fn (site) {
 
-    }
+    })
   }
 }
 ```
@@ -57,13 +57,13 @@ To build the site, you can use the following methods on the `Site` type:
 For example:
 
 ```inko
-import wobsite.Site
+import wobsite (Site)
 
 class async Main {
   fn async main {
-    Site.build fn (site) {
+    Site.build(fn (site) {
       site.copy('*.css')
-    }
+    })
   }
 }
 ```
@@ -78,15 +78,15 @@ becomes `public/css/icons.css`).
 Generating an HTML file from a Markdown file is a little more involved:
 
 ```inko
-import wobsite.(Site, Page)
+import wobsite (Site, Page)
 
 class async Main {
   fn async main {
-    Site.build fn (site) {
-      site.page('/index.md', index: false) fn {
+    Site.build(fn (site) {
+      site.page('/index.md', index: false, builder: fn {
         recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
-      }
-    }
+      })
+    })
   }
 }
 ```

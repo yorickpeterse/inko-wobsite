@@ -1,65 +1,65 @@
-import std.fs.path.Path
-import std.test.Tests
+import std.fs.path (Path)
+import std.test (Tests)
 import wobsite.url
 
 fn pub tests(t: mut Tests) {
-  t.test('url.normalize') fn (t) {
+  t.test('url.normalize', fn (t) {
     t.equal(
       url.normalize("THIS is a    title 123 it's great"),
-      'this-is-a-title-123-its-great'
+      'this-is-a-title-123-its-great',
     )
 
     t.equal(url.normalize('foo 1.2,3'), 'foo-1-23')
-  }
+  })
 
-  t.test('url.url_for_file') fn (t) {
+  t.test('url.url_for_file', fn (t) {
     t.equal(
       url.file_url(Path.new('source'), Path.new('source/foo/bar.md')),
-      '/foo/bar/'
+      '/foo/bar/',
     )
 
     t.equal(
       url.file_url(Path.new('source'), Path.new('bar/foo/bar.md')),
-      '/bar/foo/bar/'
+      '/bar/foo/bar/',
     )
 
     t.equal(
       url.file_url(Path.new('source'), Path.new('bar/foo/index.md')),
-      '/bar/foo/'
+      '/bar/foo/',
     )
 
     t.equal(url.file_url(Path.new('source'), Path.new('source/index.md')), '/')
     t.equal(url.file_url(Path.new('source'), Path.new('index.md')), '/')
     t.equal(
       url.file_url(Path.new('source'), Path.new('source/foo/index.md')),
-      '/foo/'
+      '/foo/',
     )
-  }
+  })
 
-  t.test('url.relative_to_absolute') fn (t) {
+  t.test('url.relative_to_absolute', fn (t) {
     t.equal(
       url.relative_to_absolute('/', '../style.css', as_file: true),
-      '/style.css'
+      '/style.css',
     )
     t.equal(
       url.relative_to_absolute('/foo/', '../style.css', as_file: true),
-      '/style.css'
+      '/style.css',
     )
     t.equal(
       url.relative_to_absolute('/foo/', 'style.css', as_file: true),
-      '/style.css'
+      '/style.css',
     )
     t.equal(
       url.relative_to_absolute('/foo/bar', '../style.css', as_file: true),
-      '/style.css'
+      '/style.css',
     )
     t.equal(
       url.relative_to_absolute('/foo/bar/baz', '../style.css', as_file: true),
-      '/foo/style.css'
+      '/foo/style.css',
     )
     t.equal(
       url.relative_to_absolute('/articles/article1', 'article2', as_file: true),
-      '/articles/article2'
+      '/articles/article2',
     )
-  }
+  })
 }

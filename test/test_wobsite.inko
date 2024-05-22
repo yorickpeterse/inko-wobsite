@@ -412,17 +412,15 @@ test
 
     let site = Site.new(dir.path.clone, dir.path.clone).get
 
-    site.page(
-      '*.md',
-      index: true,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.ok?)
     t.equal(read(dir.path.join('foo/index.html')), Result.Ok('<p>\ntest</p>'))
   })
 
-  t.test('Site.page with a regular Markdown file and index: false', fn (t) {
+  t.test('Site.page_without_index with a regular Markdown file', fn (t) {
     let dir = TempPath.directory(t.id)
     let md = '
 ---
@@ -440,11 +438,9 @@ test
 
     let site = Site.new(dir.path.clone, dir.path.clone).get
 
-    site.page(
-      '*.md',
-      index: false,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page_without_index('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.ok?)
     t.equal(read(dir.path.join('foo.html')), Result.Ok('<p>\ntest</p>'))
@@ -468,17 +464,15 @@ test
 
     let site = Site.new(dir.path.clone, dir.path.clone).get
 
-    site.page(
-      '*.md',
-      index: true,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.ok?)
     t.equal(read(dir.path.join('index.html')), Result.Ok('<p>\ntest</p>'))
   })
 
-  t.test('Site.page with the index Markdown file and index: false', fn (t) {
+  t.test('Site.page_without_index with the index Markdown file', fn (t) {
     let dir = TempPath.directory(t.id)
     let md = '
 ---
@@ -496,11 +490,9 @@ test
 
     let site = Site.new(dir.path.clone, dir.path.clone).get
 
-    site.page(
-      '*.md',
-      index: false,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page_without_index('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.ok?)
     t.equal(read(dir.path.join('index.html')), Result.Ok('<p>\ntest</p>'))
@@ -523,11 +515,9 @@ test
 
     let site = Site.new(dir.path.clone, dir.path.clone).get
 
-    site.page(
-      '*.md',
-      index: true,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.error?)
   })
@@ -550,11 +540,9 @@ test
 
     let site = Site.new(dir.path.clone, Path.new('/dev/null/invalid')).get
 
-    site.page(
-      '*.md',
-      index: true,
-      builder: fn { recover fn (_, page: Page) { Result.Ok(page.to_html([])) } },
-    )
+    site.page('*.md', fn {
+      recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
+    })
 
     t.true(site.wait.error?)
   })

@@ -48,11 +48,12 @@ To build the site, you can use the following methods on the `Site` type:
 - `generate(path, func)`: calls `func` and writes its return value to `path`
   (relative to the output directory). This is useful when generating files using
   arbitrary logic, such as an Atom feed.
-- `page(pattern, index, func)`: finds Markdown files matching `pattern`, turning
-  them into HTML files by calling the `func` closure. If `index` is set to
-  `true`, the output is `NAME/index.html` (e.g. `articles/foo/index.html`). If
-  `index` is `false`, the output is instead `NAME.html` (e.g.
-  `articles/foo.html`).
+- `page(pattern, func)`: finds Markdown files matching `pattern`, turning them
+  into HTML files by calling the `func` closure. The output is written to
+  `NAME/index.html` (e.g. `articles/foo/index.html`).
+- `page_without_index(pattern, func)`: finds Markdown files matching `pattern`,
+  turning them into HTML files by calling the `func` closure. The output is
+  written to `NAME.html` (e.g. `articles/foo.html`).
 
 For example:
 
@@ -83,7 +84,7 @@ import wobsite (Site, Page)
 class async Main {
   fn async main {
     Site.build(fn (site) {
-      site.page('/index.md', index: false, builder: fn {
+      site.page('/index.md', fn {
         recover fn (_, page: Page) { Result.Ok(page.to_html([])) }
       })
     })

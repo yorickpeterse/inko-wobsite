@@ -493,27 +493,40 @@ class pub Site {
   # typical setting, this closure converts the Markdown to HTML and wraps it in
   # a layout of sorts.
   #
-  # Input files are mapped to output files as follows when using `index: true`:
+  # Input files are mapped to output files as follows:
   #
   # - `./source/index.md` becomes `./public/index.html`
   # - `./source/foo.md` becomes `./public/foo/index.html`
   # - `./source/foo/bar/index.md` becomes `./public/foo/bar/index.html`
   # - `./source/foo/bar.md` becomes `./public/foo/bar/index.html`
+  fn pub mut page(
+    pattern: String,
+    builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
+  ) {
+    @files.matching(pattern).each(fn (path) {
+      @pending += 1
+      spawn.page(recover path.clone, index: true, builder: builder.call)
+    })
+  }
+
+  # Generates an HTML file from a Markdown file, without generating an
+  # `index.html` file.
   #
-  # When using `index: false`, the mapping is instead as follows:
+  # See `Site.page` for more details.
+  #
+  # Input files are mapped to output files as follows:
   #
   # - `./source/index.md` becomes `./public/index.html`
   # - `./source/foo.md` becomes `./public/foo.html`
   # - `./source/foo/bar/index.md` becomes `./public/foo/bar.html`
   # - `./source/foo/bar.md` becomes `./public/foo/bar.html`
-  fn pub mut page(
+  fn pub mut page_without_index(
     pattern: String,
-    index: Bool,
     builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
     @files.matching(pattern).each(fn (path) {
       @pending += 1
-      spawn.page(recover path.clone, index, builder.call)
+      spawn.page(recover path.clone, index: false, builder: builder.call)
     })
   }
 
@@ -597,7 +610,7 @@ class async Worker {
   fn async page(
     source: uni Path,
     index: Bool,
-    layout: uni fn (ref Files, Page) -> Result[html.Document, String],
+    builder: uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
     let source = recover source
     let rel_source = source.strip_prefix(@files.source).get
@@ -616,7 +629,7 @@ class async Worker {
     }
 
     let url = page.url
-    let html = match layout.call(@files, page) {
+    let html = match builder.call(@files, page) {
       case Ok(v) -> v
       case Error(e) -> {
         @status.send(recover Status.Error(target.clone, e))

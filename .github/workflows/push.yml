@@ -16,7 +16,7 @@ jobs:
     steps:
       - run: microdnf install --quiet --assumeyes tar git
       - uses: actions/checkout@v4
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: test
         with:
           path: |

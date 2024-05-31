@@ -530,7 +530,11 @@ class pub Site {
     })
   }
 
-  fn move wait -> Result[Nil, Errors] {
+  # Waits for the site to be built, returning once all pages have been
+  # processed.
+  #
+  # If one or more pages failed to build, a `Result.Error` is returned.
+  fn pub move wait -> Result[Nil, Errors] {
     let errors = Errors([])
 
     while @pending > 0 {

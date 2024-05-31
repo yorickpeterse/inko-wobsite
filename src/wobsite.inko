@@ -317,11 +317,21 @@ impl ToString for Errors {
 #
 # This type doesn't physically rename any files, instead it adds a `?hash=VAL`
 # query string to each relevant asset link.
-class UpdateAssetLinks {
+class pub UpdateAssetLinks {
   let @files: ref Files
   let @url: String
 
-  fn run(document: mut html.Document) {
+  # Returns a new `UpdateAssetLinks`.
+  #
+  # The `files` argument is the list of site files to use when updating links.
+  #
+  # The `url` argument is the relative URL of the page that's being processed.
+  fn pub static new(files: ref Files, url: String) -> UpdateAssetLinks {
+    UpdateAssetLinks(files, url)
+  }
+
+  # Updates any asset links in the given HTML document.
+  fn pub run(document: mut html.Document) {
     let nodes = document.nodes.iter_mut.to_array
 
     loop {
@@ -641,7 +651,7 @@ class async Worker {
       }
     }
 
-    UpdateAssetLinks(files: @files, url: url).run(html)
+    UpdateAssetLinks.new(@files, url).run(html)
 
     let status = match
       target

@@ -312,6 +312,7 @@ fn pub tests(t: mut Tests) {
 
     let assets = UpdateAssetLinks(files: files, url: '/')
 
+    t.equal(assets.hashed_url('style.css'), 'style.css?hash=123')
     t.equal(assets.hashed_url('/style.css'), '/style.css?hash=123')
     t.equal(assets.hashed_url('../style.css'), '../style.css?hash=123')
 

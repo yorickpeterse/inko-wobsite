@@ -123,8 +123,11 @@ This is the homepage of my wobsite. Cool!
 
 The `title` key is required, but the `date` key is optional.
 
-For a more in-depth example, refer to the source code of [my personal
-website](https://github.com/yorickpeterse/yorickpeterse.com/blob/main/src/main.inko).
+For a more in-depth example, refer to:
+
+- The [API documentation](https://yorickpeterse.github.io/inko-wobsite/)
+- The source code of [my personal
+  website](https://github.com/yorickpeterse/yorickpeterse.com/blob/main/src/main.inko).
 
 ## License
 

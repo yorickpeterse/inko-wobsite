@@ -410,12 +410,14 @@ class pub Site {
   #
   # Building a website that consists of simple text and CSS files:
   #
-  #     import wobsite (Site)
+  # ```
+  # import wobsite (Site)
   #
-  #     Site.build(fn (site) {
-  #       site.copy('*.txt')
-  #       site.copy('*.css')
-  #     })
+  # Site.build(fn (site) {
+  #   site.copy('*.txt')
+  #   site.copy('*.css')
+  # })
+  # ```
   fn pub static build(func: fn (mut Site)) {
     let source = Path.new('source')
     let output = Path.new('public')
@@ -462,11 +464,13 @@ class pub Site {
   #
   # # Examples
   #
-  #     import wobsite (Site)
+  # ```
+  # import wobsite (Site)
   #
-  #     Site.build(fn (site) {
-  #       site.generate('feed.xml') fn (files) { 'Example content' }
-  #     })
+  # Site.build(fn (site) {
+  #   site.generate('feed.xml') fn (files) { 'Example content' }
+  # })
+  # ```
   fn pub mut generate(
     path: String,
     builder: uni fn (ref Files) -> Result[String, String],
@@ -483,9 +487,11 @@ class pub Site {
   #
   # # Examples
   #
-  #     import wobsite (Site)
+  # ```inko
+  # import wobsite (Site)
   #
-  #     Site.build(fn (site) { site.copy('*.css') })
+  # Site.build(fn (site) { site.copy('*.css') })
+  # ```
   fn pub mut copy(pattern: String) {
     @files.matching(pattern).each(fn (path) {
       @pending += 1

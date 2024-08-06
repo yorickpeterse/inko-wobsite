@@ -1,9 +1,23 @@
+# Processing of Markdown documents.
 import builder.html
 import markdown.html (Filter)
 import std.set (Set)
 import syntax (Languages)
 import syntax.format (Html)
 
+# A filter that applies syntax highlighting to a Markdown document.
+#
+# This filter processes fenced code blocks that are tagged with a language, such
+# as the following:
+#
+# ````markdown
+# ```inko
+# this_is_inko_code
+# ```
+# ````
+#
+# Syntax highlighting is performed using
+# [inko-syntax](https://github.com/yorickpeterse/inko-syntax).
 class pub SyntaxHighlight {
   let @languages: Languages
 
@@ -69,6 +83,24 @@ impl Filter for SyntaxHighlight {
   }
 }
 
+# A filter that adds support for admonitions (notes, warnings, etc).
+#
+# Admonitions use the custom block syntax of inko-markdown. For example, to
+# create a note you'de use the following syntax:
+#
+# ```markdown
+# ::: note
+# The body goes here.
+# :::
+# ```
+#
+# The following admonition types are supported:
+#
+# - discuss
+# - info
+# - note
+# - tip
+# - warn
 class pub Admonitions {
   # The admonition classes that are supported.
   let pub @types: Set[String]

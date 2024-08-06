@@ -1,3 +1,4 @@
+# Methods for working with URLs and URIs.
 import std.fs.path (Path)
 import wobsite (INDEX_FILE)
 

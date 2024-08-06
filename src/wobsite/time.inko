@@ -1,3 +1,4 @@
+# Methods for parsing and formatting dates and times.
 import std.int
 import std.time (DateTime)
 
@@ -24,6 +25,22 @@ fn pad_zero(value: Int) -> String {
   value.to_string.pad_start('0', chars: 2)
 }
 
+# Parses a `DateTime` from a `String`.
+#
+# The expected format is `YYYY-MM-DDTHH:MM:SS`. The year, month, and day are
+# required, but the rest is optional.
+#
+# # Errors
+#
+# If the input is invalid, an `Option.None` is returned.
+#
+# # Examples
+#
+# ```inko
+# import wobsite.time (parse_date)
+#
+# parse_date('2024-01-02T13:14:15:Z') # => Option.Some(DateTime(year: 2024, month: 1, day: 2, hour: 13, minute: 14, second: 15, sub_second: 0.0, utc_offset: 0))
+# ```
 fn pub parse_date(string: String) -> Option[DateTime] {
   if string.size < 10 { return Option.None }
 
@@ -41,10 +58,52 @@ fn pub parse_date(string: String) -> Option[DateTime] {
   )
 }
 
+# Formats a `DateTime` in a human readable format.
+#
+# # Examples
+#
+# ```inko
+# import std.time (DateTime)
+# import wobsite.time (human_readable_date)
+#
+# let date = DateTime(
+#   year: 2024,
+#   month: 1,
+#   day: 2,
+#   hour: 13,
+#   minute: 14,
+#   second: 15,
+#   sub_second: 0.0,
+#   utc_offset: 0,
+# )
+#
+# human_readable_date(date) # => 'January 2, 2024'
+# ```
 fn pub human_readable_date(date: ref DateTime) -> String {
   '${MONTHS.get(date.month - 1)} ${date.day}, ${date.year}'
 }
 
+# Formats a `DateTime` as an ISO-8601 date.
+#
+# # Examples
+#
+# ```inko
+# import std.time (DateTime)
+# import wobsite.time (iso_date)
+#
+# let date = DateTime(
+#   year: 2024,
+#   month: 1,
+#   day: 2,
+#   hour: 13,
+#   minute: 14,
+#   second: 15,
+#   sub_second: 0.0,
+#   utc_offset: 0,
+# )
+#
+# iso_date(date) # => '2024-01-02T13:14:15Z'
+# ```
 fn pub iso_date(date: ref DateTime) -> String {
   '${date.year}-${pad_zero(date.month)}-${pad_zero(date.day)}T${pad_zero(date.hour)}:${pad_zero(date.minute)}:${pad_zero(date.second)}Z'
 }

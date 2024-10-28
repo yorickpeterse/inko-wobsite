@@ -8,16 +8,6 @@
 
 - [95f5c3c](https://github.com/yorickpeterse/inko-wobsite/commit/95f5c3cbe4a1f97ff69ba3806059d565e2f70646): Use inko-markdown compatible Markdown
 
-## 0.18.0 (2024-10-28)
-
-### Changed
-
-- [23cf4c7](https://github.com/yorickpeterse/inko-wobsite/commit/23cf4c72527085348b9fa08cbfdbcc26c557ebde): Require Inko 0.17.0 or newer
-
-### Other
-
-- [95f5c3c](https://github.com/yorickpeterse/inko-wobsite/commit/95f5c3cbe4a1f97ff69ba3806059d565e2f70646): Use inko-markdown compatible Markdown
-
 ## 0.17.0 (2024-06-11)
 
 ### Fixed

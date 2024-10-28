@@ -9,8 +9,9 @@ import std.fs.path (Path)
 import std.io
 import std.iter (Stream)
 import std.json (Json)
-import std.stdio (STDERR)
+import std.stdio (Stderr)
 import std.string (StringBuffer, ToString)
+import std.sync (Channel)
 import std.sys (exit)
 import std.time (DateTime)
 import wobsite.fnmatch
@@ -421,7 +422,7 @@ class pub Site {
   fn pub static build(func: fn (mut Site)) {
     let source = Path.new('source')
     let output = Path.new('public')
-    let stderr = STDERR.new
+    let stderr = Stderr.new
     let site = match Site.new(source, output) {
       case Ok(site) -> site
       case Error(e) -> {
@@ -450,7 +451,7 @@ class pub Site {
   # build. If this fails, an `Error(std.io.Error)` is returned.
   fn pub static new(source: Path, output: Path) -> Result[Site, io.Error] {
     Files.new(source, output).map(fn (files) {
-      Site(files: files, pending: 0, status: Channel.new(size: 32))
+      Site(files: files, pending: 0, status: Channel.new)
     })
   }
 
@@ -566,7 +567,7 @@ class pub Site {
   }
 
   fn spawn -> Worker {
-    Worker(files: recover @files.clone, status: @status)
+    Worker(files: recover @files.clone, status: recover @status.clone)
   }
 }
 

@@ -1,7 +1,7 @@
 import builder.html
 import markdown
 import markdown.html (Filter)
-import std.drop (Drop, drop)
+import std.drop (Drop)
 import std.env
 import std.fs.file (ReadOnlyFile, WriteOnlyFile)
 import std.fs.path (Path)

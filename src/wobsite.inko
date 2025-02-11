@@ -21,7 +21,7 @@ import wobsite.url (file_url, relative_to_absolute)
 let INDEX_FILE = 'index.md'
 
 # A type that maps asset paths/URIs to their checksums/hashes.
-class Hashes {
+type Hashes {
   # The keys of this map start with a `/`, such that relative URLs such as
   # `/css/foo.css` directly translate into valid keys for this map.
   let @mapping: Map[String, String]
@@ -49,19 +49,23 @@ class Hashes {
   }
 }
 
-impl Clone[Hashes] for Hashes {
-  fn pub clone -> Hashes {
-    Hashes(
-      @mapping.iter.reduce(Map.new, fn (map, pair) {
-        map.set(pair.key.clone, pair.value.clone)
+impl Clone for Hashes {
+  fn pub clone -> uni Hashes {
+    let map = @mapping.iter.reduce(recover Map.new, fn (map, kv) {
+      recover {
+        let map = recover map
+
+        map.set(kv.key, kv.value)
         map
-      }),
-    )
+      }
+    })
+
+    recover Hashes(map)
   }
 }
 
 # An error that may be produced when parsing JSON front matter.
-class pub enum FrontMatterError {
+type pub enum FrontMatterError {
   # The JSON syntax is invalid.
   case InvalidJson(String)
 
@@ -79,7 +83,7 @@ impl ToString for FrontMatterError {
 }
 
 # An error that may be produced when parsing a Markdown document.
-class pub enum PageError {
+type pub enum PageError {
   # An IO operation (such as reading the Markdown file) failed.
   #
   # The arguments of this case are:
@@ -119,7 +123,7 @@ impl ToString for PageError {
 }
 
 # A type storing the parsed front matter of a document.
-class pub FrontMatter {
+type pub FrontMatter {
   # The title of the page.
   let pub @title: String
 
@@ -128,7 +132,7 @@ class pub FrontMatter {
 
   # Parses JSON front matter from a `String`.
   fn pub static parse(string: String) -> Result[FrontMatter, FrontMatterError] {
-    let json = try Json.parse(string).map_error(fn (e) {
+    let json = try Json.parse(io.Buffer.new(string)).map_error(fn (e) {
       FrontMatterError.InvalidJson(e.to_string)
     })
 
@@ -152,7 +156,7 @@ class pub FrontMatter {
 }
 
 # A page backed by a Markdown document.
-class pub Page {
+type pub Page {
   # The JSON front matter.
   let pub @front_matter: FrontMatter
 
@@ -220,12 +224,12 @@ class pub Page {
 
 # A type that tracks the source and output directories, along with all the
 # source files.
-class pub Files {
+type pub Files {
   # The directory containing the source files.
-  let pub @source: Path
+  let pub mut @source: Path
 
   # The directory to store the built files in.
-  let pub @output: Path
+  let pub mut @output: Path
 
   # A list of all the files in the source directory.
   let @files: Array[Path]
@@ -275,20 +279,22 @@ class pub Files {
   }
 }
 
-impl Clone[Files] for Files {
-  fn pub clone -> Files {
-    Files(
-      source: @source.clone,
-      output: @output.clone,
-      files: @files.clone,
-      hashes: @hashes.clone,
-    )
+impl Clone for Files {
+  fn pub clone -> uni Files {
+    recover {
+      Files(
+        source: @source.clone,
+        output: @output.clone,
+        files: @files.clone,
+        hashes: @hashes.clone,
+      )
+    }
   }
 }
 
 # A collection of errors produced while building the website, along with the
 # means of easily formatting them.
-class pub Errors {
+type pub Errors {
   let @entries: Array[(Path, String)]
 
   fn mut add(path: Path, error: String) {
@@ -318,9 +324,9 @@ impl ToString for Errors {
 #
 # This type doesn't physically rename any files, instead it adds a `?hash=VAL`
 # query string to each relevant asset link.
-class pub UpdateAssetLinks {
+type pub UpdateAssetLinks {
   let @files: ref Files
-  let @url: String
+  let mut @url: String
 
   # Returns a new `UpdateAssetLinks`.
   #
@@ -390,12 +396,12 @@ class pub UpdateAssetLinks {
 }
 
 # A type that represents a website to build.
-class pub Site {
+type pub Site {
   # The files and directories that make up the website.
   let pub @files: Files
 
   # The number of pending jobs.
-  let @pending: Int
+  let mut @pending: Int
 
   # A channel used to communicate the result of each job.
   let @status: Channel[uni Status]
@@ -572,7 +578,7 @@ class pub Site {
 }
 
 # The result of a background job.
-class pub enum Status {
+type pub enum Status {
   # The job finished successfully.
   case Ok
 
@@ -585,7 +591,7 @@ class pub enum Status {
   case Error(Path, String)
 }
 
-class async Worker {
+type async Worker {
   let @files: Files
   let @status: Channel[uni Status]
 

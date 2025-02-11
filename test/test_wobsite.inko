@@ -26,7 +26,7 @@ fn write(path: ref Path, string: String) {
   WriteOnlyFile.new(path.clone).then(fn (f) { f.write_string(string) }).get
 }
 
-class ExampleFilter {}
+type ExampleFilter {}
 
 impl Filter for ExampleFilter {
   fn pub mut run(document: mut html.Document) {
@@ -39,7 +39,7 @@ impl Filter for ExampleFilter {
   }
 }
 
-class TempPath {
+type TempPath {
   let @path: Path
 
   fn static directory[T: ToString](id: ref T) -> TempPath {
@@ -95,10 +95,10 @@ fn pub tests(t: mut Tests) {
 
     orig.mapping.set('/foo', '123')
 
-    let copy = orig.clone
+    let new = orig.clone
 
     t.equal(orig.get('/foo'), Option.Some('123'))
-    t.equal(copy.get('/foo'), Option.Some('123'))
+    t.equal(new.get('/foo'), Option.Some('123'))
   })
 
   t.test('PageError.to_string', fn (t) {
@@ -232,10 +232,10 @@ fn pub tests(t: mut Tests) {
 
     orig.hashes.mapping.set('/foo', '123')
 
-    let copy = orig.clone
+    let new = recover orig.clone
 
-    t.equal(orig.files, copy.files)
-    t.equal(orig.hashes.mapping, copy.hashes.mapping)
+    t.equal(orig.files, new.files)
+    t.equal(orig.hashes.mapping, new.hashes.mapping)
   })
 
   t.test('Errors.add', fn (t) {

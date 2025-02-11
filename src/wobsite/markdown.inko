@@ -18,7 +18,7 @@ import syntax.format (Html)
 #
 # Syntax highlighting is performed using
 # [inko-syntax](https://github.com/yorickpeterse/inko-syntax).
-class pub SyntaxHighlight {
+type pub SyntaxHighlight {
   let @languages: Languages
 
   fn pub static new -> SyntaxHighlight {
@@ -101,21 +101,21 @@ impl Filter for SyntaxHighlight {
 # - note
 # - tip
 # - warn
-class pub Admonitions {
+type pub Admonitions {
   # The admonition classes that are supported.
   let pub @types: Set[String]
 
   # The base class to apply to the container.
-  let pub @class: String
+  let pub mut @class: String
 
   # The element name to use for the icon.
-  let pub @icon_element: String
+  let pub mut @icon_element: String
 
   # The class to apply to the icon element.
-  let pub @icon_class: String
+  let pub mut @icon_class: String
 
   # The name of the class to apply to the text div.
-  let pub @text_class: String
+  let pub mut @text_class: String
 
   fn pub static new -> Admonitions {
     let types = Set.new

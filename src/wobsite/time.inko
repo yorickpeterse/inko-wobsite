@@ -1,31 +1,8 @@
 # Methods for parsing and formatting dates and times.
-import std.int
+import std.locale.en (Locale)
 import std.time (DateTime)
 
-let MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-
-fn parse_number(string: String, start: Int, size: Int) -> Option[Int] {
-  Int.parse(string.slice(start, size), int.Format.Decimal)
-}
-
-fn pad_zero(value: Int) -> String {
-  value.to_string.pad_start('0', chars: 2)
-}
-
-# Parses a `DateTime` from a `String`.
+# Parses a `DateTime` from a `String` using the English locale.
 #
 # The expected format is `YYYY-MM-DDTHH:MM:SS`. The year, month, and day are
 # required, but the rest is optional.
@@ -39,71 +16,12 @@ fn pad_zero(value: Int) -> String {
 # ```inko
 # import wobsite.time (parse_date)
 #
-# parse_date('2024-01-02T13:14:15:Z') # => Option.Some(DateTime(year: 2024, month: 1, day: 2, hour: 13, minute: 14, second: 15, sub_second: 0.0, utc_offset: 0))
+# parse_date('2024-01-02T13:14:15') # => Option.Some(DateTime(...))
 # ```
 fn pub parse_date(string: String) -> Option[DateTime] {
-  if string.size < 10 { return Option.None }
+  let en = Locale.new
 
-  Option.Some(
-    DateTime(
-      year: try parse_number(string, start: 0, size: 4),
-      month: try parse_number(string, start: 5, size: 2),
-      day: try parse_number(string, start: 8, size: 2),
-      hour: parse_number(string, start: 11, size: 2).or(0),
-      minute: parse_number(string, start: 14, size: 2).or(0),
-      second: parse_number(string, start: 17, size: 2).or(0),
-      sub_second: 0.0,
-      utc_offset: 0,
-    ),
-  )
-}
-
-# Formats a `DateTime` in a human readable format.
-#
-# # Examples
-#
-# ```inko
-# import std.time (DateTime)
-# import wobsite.time (human_readable_date)
-#
-# let date = DateTime(
-#   year: 2024,
-#   month: 1,
-#   day: 2,
-#   hour: 13,
-#   minute: 14,
-#   second: 15,
-#   sub_second: 0.0,
-#   utc_offset: 0,
-# )
-#
-# human_readable_date(date) # => 'January 2, 2024'
-# ```
-fn pub human_readable_date(date: ref DateTime) -> String {
-  '${MONTHS.get(date.month - 1)} ${date.day}, ${date.year}'
-}
-
-# Formats a `DateTime` as an ISO-8601 date.
-#
-# # Examples
-#
-# ```inko
-# import std.time (DateTime)
-# import wobsite.time (iso_date)
-#
-# let date = DateTime(
-#   year: 2024,
-#   month: 1,
-#   day: 2,
-#   hour: 13,
-#   minute: 14,
-#   second: 15,
-#   sub_second: 0.0,
-#   utc_offset: 0,
-# )
-#
-# iso_date(date) # => '2024-01-02T13:14:15Z'
-# ```
-fn pub iso_date(date: ref DateTime) -> String {
-  '${date.year}-${pad_zero(date.month)}-${pad_zero(date.day)}T${pad_zero(date.hour)}:${pad_zero(date.minute)}:${pad_zero(date.second)}Z'
+  DateTime.parse(string, format: '%Y-%m-%dT%H:%M:%S', locale: en).else(fn {
+    DateTime.parse(string, format: '%Y-%m-%d', locale: en)
+  })
 }

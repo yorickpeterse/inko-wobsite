@@ -432,7 +432,8 @@ type pub Site {
     let site = match Site.new(source, output) {
       case Ok(site) -> site
       case Error(e) -> {
-        stderr.print("Failed to get the site's source files: ${e}")
+        let _ = stderr.print("failed to get the site's source files: ${e}")
+
         exit(1)
       }
     }
@@ -442,7 +443,8 @@ type pub Site {
     match site.wait {
       case Ok(_) -> {}
       case Error(e) -> {
-        stderr.print(e.to_string)
+        let _ = stderr.print(e.to_string)
+
         exit(1)
       }
     }

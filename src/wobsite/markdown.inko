@@ -26,17 +26,17 @@ type pub SyntaxHighlight {
   }
 
   fn mut highlight(pre: ref html.Element) -> Option[html.Element] {
-    let code = match pre.nodes.opt(0) {
-      case Some(Element(el)) if el.name == 'code' and el.nodes.size == 1 -> el
+    let code = match pre.nodes.get(0) {
+      case Ok(Element(el)) if el.name == 'code' and el.nodes.size == 1 -> el
       case _ -> return Option.None
     }
 
-    let lang = try code.attributes.opt('data-language').then(fn (v) {
+    let lang = try code.attributes.get('data-language').ok.then(fn (v) {
       @languages.get(v)
     })
 
-    let bytes = match code.nodes.opt(0) {
-      case Some(Text(v)) -> v.to_byte_array
+    let bytes = match code.nodes.get(0) {
+      case Ok(Text(v)) -> v.to_byte_array
       case _ -> return Option.None
     }
 
@@ -141,8 +141,8 @@ type pub Admonitions {
       case _ -> return
     }
 
-    let kind = match note.attributes.opt('class') {
-      case Some(v) if @types.contains?(v) -> v
+    let kind = match note.attributes.get('class') {
+      case Ok(v) if @types.contains?(v) -> v
       case _ -> return
     }
 
@@ -159,6 +159,6 @@ type pub Admonitions {
 
 impl Filter for Admonitions {
   fn pub mut run(document: mut html.Document) {
-    document.nodes.iter_mut.each(fn (node) { replace(node) })
+    for node in document.nodes.iter_mut { replace(node) }
   }
 }

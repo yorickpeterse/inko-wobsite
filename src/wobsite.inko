@@ -45,22 +45,13 @@ type Hashes {
   }
 
   fn get(key: String) -> Option[String] {
-    @mapping.opt(key)
+    @mapping.get(key).ok
   }
 }
 
 impl Clone for Hashes {
   fn pub clone -> uni Hashes {
-    let map = @mapping.iter.reduce(recover Map.new, fn (map, kv) {
-      recover {
-        let map = recover map
-
-        map.set(kv.key, kv.value)
-        map
-      }
-    })
-
-    recover Hashes(map)
+    recover Hashes(@mapping.clone)
   }
 }
 
@@ -206,7 +197,7 @@ type pub Page {
   }
 
   # Returns the date at which the page is created.
-  fn pub date -> ref DateTime {
+  fn pub date -> DateTime {
     @front_matter.date
   }
 
@@ -217,7 +208,8 @@ type pub Page {
   fn pub to_html(filters: Array[Filter]) -> html.Document {
     let doc = @body.to_html
 
-    filters.into_iter.each(fn (filter) { filter.run(doc) })
+    for filter in filters { filter.run(doc) }
+
     doc
   }
 }
@@ -247,17 +239,16 @@ type pub Files {
     let hashes = Hashes.new
     let iter = try source.list_all
 
-    try iter.try_each(fn (res) {
+    for res in iter {
       match res {
         case Ok({ @type = File, @path = path }) -> {
           try hashes.add(path.clone, '/${path.strip_prefix(source).get}')
           files.push(path)
-          Result.Ok(nil)
         }
-        case Ok(_) -> Result.Ok(nil)
-        case Error(e) -> Result.Error(e)
+        case Ok(_) -> {}
+        case Error(e) -> throw e
       }
-    })
+    }
 
     Result.Ok(
       Files(source: source, output: output, files: files, hashes: hashes),
@@ -274,7 +265,7 @@ type pub Files {
     })
   }
 
-  fn hash(path: ref String) -> Option[String] {
+  fn hash(path: String) -> Option[String] {
     @hashes.get(path)
   }
 }
@@ -309,7 +300,7 @@ type pub Errors {
 impl ToString for Errors {
   fn pub to_string -> String {
     let buf = @entries.iter.reduce(StringBuffer.new, fn (buf, entry) {
-      if buf.size > 0 { buf.push('\n\n') }
+      if !buf.empty? { buf.push('\n\n') }
 
       buf.push('${entry.0} \e[31;1merror:\e[0m\n  ${entry.1}')
       buf
@@ -363,17 +354,17 @@ type pub UpdateAssetLinks {
   }
 
   fn src_element(element: mut html.Element) {
-    match element.attributes.opt('src') {
-      case Some(url) -> element.attr('src', hashed_url(url))
+    match element.attributes.get('src') {
+      case Ok(url) -> element.attr('src', hashed_url(url))
       case _ -> return
     }
   }
 
   fn link(link: mut html.Element) {
-    match link.attributes.opt('rel') {
-      case Some('stylesheet' or 'icon' or 'preload') -> {
-        match link.attributes.opt('href') {
-          case Some(url) -> link.attr('href', hashed_url(url))
+    match link.attributes.get('rel') {
+      case Ok('stylesheet' or 'icon' or 'preload') -> {
+        match link.attributes.get('href') {
+          case Ok(url) -> link.attr('href', hashed_url(url))
           case _ -> return
         }
       }
@@ -382,7 +373,7 @@ type pub UpdateAssetLinks {
   }
 
   fn hashed_url(url: String) -> String {
-    let key = if url.starts_with?('/').false? {
+    let key = if !url.starts_with?('/') {
       relative_to_absolute(@url, url, as_file: true)
     } else {
       url
@@ -502,10 +493,10 @@ type pub Site {
   # Site.build(fn (site) { site.copy('*.css') })
   # ```
   fn pub mut copy(pattern: String) {
-    @files.matching(pattern).each(fn (path) {
+    for path in @files.matching(pattern) {
       @pending += 1
       spawn.copy(recover path.clone)
-    })
+    }
   }
 
   # Generates an HTML file from a Markdown file.
@@ -528,10 +519,10 @@ type pub Site {
     pattern: String,
     builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
-    @files.matching(pattern).each(fn (path) {
+    for path in @files.matching(pattern) {
       @pending += 1
       spawn.page(recover path.clone, index: true, builder: builder.call)
-    })
+    }
   }
 
   # Generates an HTML file from a Markdown file, without generating an
@@ -549,10 +540,10 @@ type pub Site {
     pattern: String,
     builder: fn -> uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
-    @files.matching(pattern).each(fn (path) {
+    for path in @files.matching(pattern) {
       @pending += 1
       spawn.page(recover path.clone, index: false, builder: builder.call)
-    })
+    }
   }
 
   # Waits for the site to be built, returning once all pages have been
@@ -614,7 +605,7 @@ type async Worker {
       .directory
       .create_directory_all
       .then(fn (_) { WriteOnlyFile.new(path.clone) })
-      .then(fn (f) { f.write_string(data) })
+      .then(fn (f) { f.write(data) })
 
     let status = match res {
       case Ok(_) -> recover Status.Ok
@@ -643,7 +634,7 @@ type async Worker {
   ) {
     let source = recover source
     let rel_source = source.strip_prefix(@files.source).get
-    let target = if rel_source.tail == INDEX_FILE or index.false? {
+    let target = if rel_source.tail.equals?(INDEX_FILE) or !index {
       @files.output.join(rel_source.with_extension('html'))
     } else {
       @files.output.join(rel_source.with_extension('').join('index.html'))
@@ -673,7 +664,7 @@ type async Worker {
         .directory
         .create_directory_all
         .then(fn (_) { WriteOnlyFile.new(target.clone) })
-        .then(fn (f) { f.write_string(html.to_string) })
+        .then(fn (f) { f.write(html.to_string) })
     {
       case Ok(_) -> recover Status.Ok
       case Error(e) -> recover Status.Error(target.clone, e.to_string)

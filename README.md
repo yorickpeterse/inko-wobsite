@@ -5,7 +5,7 @@ after [xkcd 148](https://xkcd.com/148/).
 
 ## Requirements
 
-- Inko 0.18.0 or newer
+- Inko 0.19.1 or newer
 
 ## Installation
 
@@ -21,7 +21,7 @@ To get started, create `src/main.inko` with the following contents:
 ```inko
 import wobsite (Site)
 
-class async Main {
+type async Main {
   fn async main {
     Site.build(fn (site) {
 
@@ -60,7 +60,7 @@ For example:
 ```inko
 import wobsite (Site)
 
-class async Main {
+type async Main {
   fn async main {
     Site.build(fn (site) {
       site.copy('*.css')
@@ -81,7 +81,7 @@ Generating an HTML file from a Markdown file is a little more involved:
 ```inko
 import wobsite (Site, Page)
 
-class async Main {
+type async Main {
   fn async main {
     Site.build(fn (site) {
       site.page('/index.md', fn {

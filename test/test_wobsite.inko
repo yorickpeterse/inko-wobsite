@@ -23,19 +23,19 @@ fn read(path: ref Path) -> Result[String, io.Error] {
 }
 
 fn write(path: ref Path, string: String) {
-  WriteOnlyFile.new(path.clone).then(fn (f) { f.write_string(string) }).get
+  WriteOnlyFile.new(path.clone).then(fn (f) { f.write(string) }).get
 }
 
 type ExampleFilter {}
 
 impl Filter for ExampleFilter {
   fn pub mut run(document: mut html.Document) {
-    document.nodes.iter_mut.each(fn (node) {
+    for node in document.nodes.iter_mut {
       match node {
         case Element(el) -> el.name = 'foo'
         case _ -> {}
       }
-    })
+    }
   }
 }
 
@@ -371,12 +371,12 @@ fn pub tests(t: mut Tests) {
   })
 
   t.test('Site.copy', fn (t) {
-    let in = TempPath.directory('${t.id}-in')
+    let inp = TempPath.directory('${t.id}-in')
     let out = TempPath.directory('${t.id}-out')
 
-    write(in.path.join('test.txt'), 'test')
+    write(inp.path.join('test.txt'), 'test')
 
-    let site = Site.new(in.path.clone, out.path.clone).get
+    let site = Site.new(inp.path.clone, out.path.clone).get
 
     site.copy('*.txt')
     t.true(site.wait.ok?)
@@ -384,12 +384,12 @@ fn pub tests(t: mut Tests) {
   })
 
   t.test('Site.copy with an invalid path', fn (t) {
-    let in = TempPath.directory('${t.id}-in')
+    let inp = TempPath.directory('${t.id}-in')
     let out = Path.new('/dev/null/invalid')
 
-    write(in.path.join('test.txt'), 'test')
+    write(inp.path.join('test.txt'), 'test')
 
-    let site = Site.new(in.path.clone, out.clone).get
+    let site = Site.new(inp.path.clone, out.clone).get
 
     site.copy('*.txt')
     t.true(site.wait.error?)

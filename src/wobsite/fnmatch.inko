@@ -2,8 +2,8 @@ let FNM_PATHNAME = 1
 let FNM_NOMATCH = 1
 
 fn extern fnmatch(
-  pattern: Pointer[UInt8],
-  string: Pointer[UInt8],
+  pattern: Pointer[Uint8],
+  string: Pointer[Uint8],
   flags: Int32,
 ) -> Int32
 

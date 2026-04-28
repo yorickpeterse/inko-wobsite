@@ -1,5 +1,6 @@
 # Methods for working with URLs and URIs.
 import std.fs.path (Path)
+import std.uri
 import wobsite (INDEX_FILE)
 
 let TAB = 9
@@ -93,17 +94,12 @@ fn pub relative_to_absolute(
   url: String,
   as_file: Bool,
 ) -> String {
-  let steps = url.split('/').take_while(fn (v) { v.equals?('..') }).count
-  let mut pending = steps + as_file.to_int
-  let chunks = current.split('/').to_array
+  let sep = if as_file { '/../' } else { '' }
 
-  while pending > 0 {
-    chunks.pop
-    pending -= 1
+  match uri.Path.new('${current}${sep}${url}') {
+    case Some(v) -> v.value
+    case _ -> {
+      panic("failed to create a URI path from '${current}' and '${url}'")
+    }
   }
-
-  let base = String.join(chunks.into_iter, '/')
-  let rel = String.join(url.split('/').skip(steps), '/')
-
-  '${base}/${rel}'
 }

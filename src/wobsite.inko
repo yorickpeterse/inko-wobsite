@@ -2,12 +2,13 @@
 import builder.html
 import markdown
 import markdown.html (Filter)
+import std.array
 import std.clone (Clone)
 import std.crypto.sha2 (Sha256)
 import std.fs.file (ReadOnlyFile, WriteOnlyFile)
 import std.fs.path (Path)
 import std.io
-import std.iter (Stream)
+import std.iter (Iter)
 import std.json (Json)
 import std.stdio (Stderr)
 import std.string (StringBuffer, ToString)
@@ -257,12 +258,13 @@ type pub Files {
 
   # Returns an iterator that yields all the source files matching the given
   # `fnmatch(3)` pattern.
-  fn pub matching(pattern: String) -> Stream[ref Path] {
-    let root = pattern.starts_with?('/')
-
-    @files.iter.select(fn (path) {
-      fnmatch.match(pattern, '/${path.strip_prefix(@source).get}', root)
-    })
+  fn pub matching(pattern: String) -> MatchingFiles {
+    MatchingFiles(
+      source: @source.clone,
+      iter: @files.iter,
+      pattern: pattern,
+      root: pattern.starts_with?('/'),
+    )
   }
 
   fn hash(path: String) -> Option[String] {
@@ -279,6 +281,25 @@ impl Clone for Files {
         files: @files.clone,
         hashes: @hashes.clone,
       )
+    }
+  }
+}
+
+type pub inline MatchingFiles {
+  let @source: Path
+  let @iter: array.Iter[Path]
+  let @pattern: String
+  let @root: Bool
+}
+
+impl Iter[Path] for MatchingFiles {
+  fn pub mut next -> Option[Path] {
+    loop {
+      let path = try @iter.next
+
+      if fnmatch.match(@pattern, '/${path.strip_prefix(@source).get}', @root) {
+        return Option.Some(path.clone)
+      }
     }
   }
 }
@@ -593,6 +614,7 @@ type async Worker {
     builder: uni fn (ref Files) -> Result[String, String],
   ) {
     let path = recover path
+    let builder = recover builder
     let data = match builder.call(@files) {
       case Ok(v) -> v
       case Error(e) -> {
@@ -633,6 +655,7 @@ type async Worker {
     builder: uni fn (ref Files, Page) -> Result[html.Document, String],
   ) {
     let source = recover source
+    let builder = recover builder
     let rel_source = source.strip_prefix(@files.source).get
     let target = if rel_source.tail.equals?(INDEX_FILE) or !index {
       @files.output.join(rel_source.with_extension('html'))

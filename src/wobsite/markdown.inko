@@ -59,6 +59,7 @@ type pub SyntaxHighlight {
         element.name = name
         element.attributes = attr
         element.nodes = nodes
+
         {}
       }
       case _ -> {}

@@ -203,11 +203,11 @@ fn pub tests(t: mut Tests) {
     t.equal(files.matching('index.md').to_array, [])
     t.equal(files.matching('test.md').to_array, [])
     t.equal(files.matching('articles/test.md').to_array, [])
-    t.equal(files.matching('/index.md').to_array, [ref index])
-    t.equal(files.matching('/articles/test.md').to_array, [ref article])
+    t.equal(files.matching('/index.md').to_array, [index.clone])
+    t.equal(files.matching('/articles/test.md').to_array, [article.clone])
     t.equal(files.matching('/test.md').to_array, [])
-    t.equal(files.matching('*.md').to_array, [ref index, ref article])
-    t.equal(files.matching('/*.md').to_array, [ref index])
+    t.equal(files.matching('*.md').to_array, [index.clone, article])
+    t.equal(files.matching('/*.md').to_array, [index])
   })
 
   t.test('Files.hash', fn (t) {

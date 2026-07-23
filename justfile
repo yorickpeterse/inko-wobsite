@@ -6,7 +6,7 @@ changelog version:
 commit version:
     git add .
     git commit -m "Release v{{ version }}"
-    git push origin "$$(git rev-parse --abbrev-ref HEAD)"
+    git push origin "$(git rev-parse --abbrev-ref HEAD)"
 
 # Create the release tag
 tag version:
@@ -15,7 +15,7 @@ tag version:
 
 # Update the version in the README
 update-readme version:
-    sed -E -i -e 's/^inko pkg add ([^ ]+).+$$/inko pkg add \1 {{ version }}/' README.md
+    sed -E -i -e 's/^inko pkg add ([^ ]+).+$/inko pkg add \1 {{ version }}/' README.md
 
 # Publish a new release
 release version: (update-readme version) (changelog version) (commit version) (tag version)

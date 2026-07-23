@@ -1,0 +1,28 @@
+---
+name: Tests
+on:
+  workflow_call:
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/inko-lang/inko:latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: inko --version
+      - run: inko fmt --check
+
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/inko-lang/inko:latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        id: test
+        with:
+          path: '~/.local/share/inko/packages'
+          key: test-${{ hashFiles('inko.pkg') }}
+      - run: inko --version
+      - run: inko test

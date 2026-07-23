@@ -11,22 +11,18 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  tests:
+    name: Tests
+    uses: ./.github/workflows/tests.yml
+
   build:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/inko-lang/idoc:latest
+    needs:
+      - tests
     steps:
-      - name: Install dependencies
-        run: microdnf install --quiet --assumeyes tar git
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: '~/.local/share/inko/packages'
-          key: deps-${{ hashFiles('inko.pkg') }}
-      - name: Install Inko packages
-        run: inko pkg sync
-      - name: Run tests
-        run: inko test
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Build documentation
         run: idoc
       - name: Upload documentation

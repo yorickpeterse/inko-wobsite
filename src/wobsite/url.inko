@@ -95,8 +95,10 @@ fn pub relative_to_absolute(
   as_file: Bool,
 ) -> String {
   let sep = if as_file { '/../' } else { '' }
+  let lhs = uri.Path.from_slice(current.split('/').to_array.to_slice)
+  let rhs = uri.Path.from_slice(url.split('/').to_array.to_slice)
 
-  match uri.Path.new('${current}${sep}${url}') {
+  match uri.Path.new('${lhs.value}${sep}${rhs.value}') {
     case Some(v) -> v.value
     case _ -> {
       panic("failed to create a URI path from '${current}' and '${url}'")

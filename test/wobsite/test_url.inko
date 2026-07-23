@@ -61,5 +61,13 @@ fn pub tests(t: mut Tests) {
       url.relative_to_absolute('/articles/article1', 'article2', as_file: true),
       '/articles/article2',
     )
+    t.equal(
+      url.relative_to_absolute('/a/b/valid?', '../style.css', as_file: true),
+      '/a/style.css',
+    )
+    t.equal(
+      url.relative_to_absolute('/a/b/valid', '../style.css?', as_file: true),
+      '/a/style.css%3F',
+    )
   })
 }
